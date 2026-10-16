@@ -1,0 +1,40 @@
+<idea-plugin>
+    <id>dev.helmfile.editor</id>
+    <name>Helmfile</name>
+    <vendor>Helmfile Plugin Contributors</vendor>
+    <description><![CDATA[
+      Helmfile YAML and Go template editing: contextual completion, state values navigation,
+      environment selection, bidirectional values navigation, Find Usages, template inheritance
+      gutter navigation, and configurable colors and documentation for Go, Sprig, and Helmfile functions.
+    ]]></description>
+    <depends>com.intellij.modules.platform</depends>
+    <depends>org.jetbrains.plugins.yaml</depends>
+    <extensions defaultExtensionNs="com.intellij">
+        <fileType name="Helmfile Template" language="Helmfile" implementationClass="dev.helmfile.intellij.HelmfileFileType"
+                  fieldName="INSTANCE" fileNames="helmfile.yaml;helmfile.yml" extensions="gotmpl" patterns="_*.tpl"/>
+        <lang.parserDefinition language="Helmfile" implementationClass="dev.helmfile.intellij.HelmfileParserDefinition"/>
+        <lang.fileViewProviderFactory language="Helmfile" implementationClass="dev.helmfile.intellij.HelmfileViewProviderFactory"/>
+        <lang.syntaxHighlighterFactory language="Helmfile" implementationClass="dev.helmfile.intellij.HelmfileSyntaxHighlighterFactory"/>
+        <colorSettingsPage implementation="dev.helmfile.intellij.HelmfileColorSettingsPage"/>
+        <completion.contributor language="any" implementationClass="dev.helmfile.intellij.HelmfileCompletionContributor"/>
+        <completion.confidence language="Helmfile" implementationClass="dev.helmfile.intellij.HelmfileCompletionConfidence"/>
+        <lang.documentationProvider language="Helmfile" implementationClass="dev.helmfile.intellij.HelmfileDocumentationProvider"/>
+        <lang.documentationProvider language="yaml" implementationClass="dev.helmfile.intellij.HelmfileDocumentationProvider"/>
+        <psi.referenceContributor language="yaml" implementation="dev.helmfile.intellij.HelmfileReferenceContributor"/>
+        <lang.findUsagesProvider language="Helmfile" implementationClass="dev.helmfile.intellij.HelmfileFindUsagesProvider"/>
+        <findUsagesHandlerFactory implementation="dev.helmfile.intellij.HelmfileFindUsagesHandlerFactory" order="first"/>
+        <gotoDeclarationHandler implementation="dev.helmfile.intellij.HelmfileGotoDeclarationHandler" order="first"/>
+        <codeInsight.lineMarkerProvider language="yaml" implementationClass="dev.helmfile.intellij.HelmfileInheritanceLineMarkerProvider"/>
+        <annotator language="Helmfile" implementationClass="dev.helmfile.intellij.HelmfileAnnotator"/>
+        <intentionAction>
+            <className>dev.helmfile.intellij.FunctionDocumentationIntention</className>
+            <category>Helmfile</category>
+        </intentionAction>
+    </extensions>
+    <actions>
+        <action id="Helmfile.SelectEnvironment" class="dev.helmfile.intellij.SelectEnvironmentAction"
+                text="Helmfile: Select Environment" description="Select the Helmfile environment used for values completion and navigation">
+            <add-to-group group-id="ToolsMenu" anchor="last"/>
+        </action>
+    </actions>
+</idea-plugin>

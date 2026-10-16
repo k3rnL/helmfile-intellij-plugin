@@ -1,0 +1,3 @@
+app:
+  replicas: 1
+domain: web.local

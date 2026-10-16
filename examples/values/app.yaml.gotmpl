@@ -1,0 +1,10 @@
+replicaCount: {{ .Values.app.replicas }}
+image:
+  registry: {{ .Values.image.registry | quote }}
+  tag: {{ .Values.image.tag | quote }}
+ingress:
+  enabled: true
+  hostname: {{ .Values.domain | quote }}
+# Place the caret on quote or requiredEnv and use Alt+Enter for documentation.
+# This expression runs only when Helmfile renders the file:
+fullnameOverride: {{ env "APP_NAME" | default .Values.app.name | quote }}

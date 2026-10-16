@@ -1,0 +1,3 @@
+releases:
+  - name: api
+    namespace: {{ requiredEnv "NAMESPACE" }}
