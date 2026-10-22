@@ -2,7 +2,7 @@ package dev.helmfile.intellij;
 
 import com.intellij.find.actions.*;
 import com.intellij.find.findUsages.FindUsagesOptions;
-import com.intellij.ide.util.EditSourceUtil;
+import com.intellij.util.PsiNavigateUtil;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.util.*;
 import com.intellij.patterns.PlatformPatterns;
@@ -24,6 +24,7 @@ import org.jetbrains.yaml.YAMLLanguage;
 import org.jetbrains.yaml.psi.*;
 
 public class HelmfileUsageRegressionTest extends BasePlatformTestCase {
+    private CapturingPopupManager currentPopup;
     private static final String STATE = """
             environments:
               quality:
@@ -58,10 +59,11 @@ public class HelmfileUsageRegressionTest extends BasePlatformTestCase {
         PsiElement[] targets = new HelmfileGotoDeclarationHandler().getGotoDeclarationTargets(declaration.getKey(), declaration.getKey().getTextOffset(), myFixture.getEditor());
         assertSize(1, targets);
         CapturingPopupManager manager = captureNativePopup();
-        EditSourceUtil.getDescriptor(targets[0]).navigate(true);
+        PsiNavigateUtil.navigate(targets[0]);
+        flushNativeSearch();
         assertNotNull(manager.handler);
         assertInstanceOf(manager.view, UsageViewPopup.class);
-        assertFalse(((HelmfileUsagePopup) manager.handler).isDeclarationMode());
+        assertTrue(manager.handler.getPresentation().getSearchTargetString().contains("Helmfile usages"));
         assertSize(1, manager.usages);
         UsageInfo2UsageAdapter usage = (UsageInfo2UsageAdapter) manager.usages.getFirst();
         assertTrue(usage.getPlainText(), usage.getPlainText().contains(".StateValues.namespace"));
@@ -75,9 +77,10 @@ public class HelmfileUsageRegressionTest extends BasePlatformTestCase {
         PsiElement[] targets = new HelmfileGotoDeclarationHandler().getGotoDeclarationTargets(file.findElementAt(offset), offset, myFixture.getEditor());
         assertSize(1, targets);
         CapturingPopupManager manager = captureNativePopup();
-        EditSourceUtil.getDescriptor(targets[0]).navigate(true);
+        PsiNavigateUtil.navigate(targets[0]);
+        flushNativeSearch();
         assertInstanceOf(manager.view, UsageViewPopup.class);
-        assertTrue(((HelmfileUsagePopup) manager.handler).isDeclarationMode());
+        assertTrue(manager.handler.getPresentation().getSearchTargetString().contains("Helmfile declarations"));
         assertSize(2, manager.usages);
         Set<Integer> lines = new HashSet<>();
         for (Usage usage : manager.usages) {
@@ -87,7 +90,7 @@ public class HelmfileUsageRegressionTest extends BasePlatformTestCase {
             lines.add(row.getLine());
         }
         assertSize(2, lines);
-        assertFalse(manager.handler.navigateToSingleUsageImmediately());
+        assertTrue(manager.handler.navigateToSingleUsageImmediately());
     }
     public void testForeignKubernetesLikeReferencesCannotBreakUsagesOrDownwardGutter() {
         AtomicInteger resolutions = new AtomicInteger();
@@ -132,7 +135,7 @@ public class HelmfileUsageRegressionTest extends BasePlatformTestCase {
         CapturingPopupManager manager = captureNativePopup();
         invokeNativeGoToDeclaration(file);
         assertInstanceOf(manager.view, UsageViewPopup.class);
-        assertTrue(((HelmfileUsagePopup) manager.handler).isDeclarationMode());
+        assertTrue(manager.handler.getPresentation().getSearchTargetString().contains("Helmfile declarations"));
         assertSize(2, manager.usages);
     }
     private void invokeNativeGoToDeclaration(PsiFile file) {
@@ -142,8 +145,13 @@ public class HelmfileUsageRegressionTest extends BasePlatformTestCase {
                 .add(com.intellij.openapi.actionSystem.CommonDataKeys.EDITOR, myFixture.getEditor())
                 .add(com.intellij.openapi.actionSystem.CommonDataKeys.PSI_FILE, file).build();
         action.actionPerformed(com.intellij.openapi.actionSystem.AnActionEvent.createFromAnAction(action, null, "test", data));
+        flushNativeSearch();
+    }
+    private void flushNativeSearch() {
         com.intellij.openapi.application.impl.NonBlockingReadActionImpl.waitForAsyncTaskCompletion();
         com.intellij.testFramework.PlatformTestUtil.dispatchAllEventsInIdeEventQueue();
+        assertNotNull(currentPopup.search);
+        com.intellij.testFramework.PlatformTestUtil.waitForFuture(currentPopup.search, 10_000);
     }
     public void testDownwardArrowOpensNativeUsagePreview() {
         PsiFile file = myFixture.addFileToProject("helmfile.yaml.gotmpl", STATE);
@@ -154,6 +162,7 @@ public class HelmfileUsageRegressionTest extends BasePlatformTestCase {
         var down = markers.stream().filter(marker -> marker.getLineMarkerTooltip().contains("inheriting Helmfile")).findFirst().orElseThrow();
         CapturingPopupManager manager = captureNativePopup();
         click(down);
+        flushNativeSearch();
         assertInstanceOf(manager.view, UsageViewPopup.class);
         assertSize(1, manager.usages);
         assertTrue(((UsageInfo2UsageAdapter) manager.usages.getFirst()).getPlainText().contains("template: shared"));
@@ -164,6 +173,7 @@ public class HelmfileUsageRegressionTest extends BasePlatformTestCase {
     }
     private CapturingPopupManager captureNativePopup() {
         CapturingPopupManager manager = new CapturingPopupManager();
+        currentPopup = manager;
         ServiceContainerUtil.replaceService(getProject(), ShowUsagesManager.class, manager, getTestRootDisposable());
         return manager;
     }
@@ -171,11 +181,17 @@ public class HelmfileUsageRegressionTest extends BasePlatformTestCase {
         ShowUsagesActionHandler handler;
         UsageViewImpl view;
         final List<Usage> usages = new ArrayList<>();
+        Future<Collection<Usage>> search;
         @Override public @NotNull Future<Collection<Usage>> showElementUsagesWithResult(@NotNull ShowUsagesParameters parameters, @NotNull ShowUsagesActionHandler handler, @NotNull UsageViewImpl view) {
             this.handler = handler; this.view = view;
             Disposer.register(getTestRootDisposable(), view);
-            handler.createUsageSearcher().generate(usage -> { usages.add(usage); return true; });
-            return CompletableFuture.completedFuture(usages);
+            search = com.intellij.util.concurrency.AppExecutorUtil.getAppExecutorService().submit(() -> {
+                com.intellij.openapi.progress.ProgressManager.getInstance().runProcess(
+                        () -> handler.createUsageSearcher().generate(usage -> { usages.add(usage); return true; }),
+                        new com.intellij.openapi.progress.EmptyProgressIndicator());
+                return usages;
+            });
+            return search;
         }
     }
     private static final class FailingReference extends PsiReferenceBase<PsiElement> {

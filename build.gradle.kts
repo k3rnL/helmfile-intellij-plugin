@@ -1,4 +1,5 @@
 import org.jetbrains.intellij.platform.gradle.TestFrameworkType
+import org.jetbrains.intellij.platform.gradle.tasks.VerifyPluginTask
 
 plugins {
     java
@@ -6,7 +7,7 @@ plugins {
 }
 
 group = "dev.helmfile.intellij"
-version = "0.2.1"
+version = "0.3.2"
 
 repositories {
     mavenCentral()
@@ -31,6 +32,13 @@ intellijPlatform {
         ideaVersion { sinceBuild = "261" }
     }
     buildSearchableOptions = false
+    pluginVerification {
+        failureLevel = VerifyPluginTask.FailureLevel.ALL
+        ides {
+            current()
+            providers.gradleProperty("verificationIdePath").orNull?.let { local(it) }
+        }
+    }
 }
 
 tasks.test {

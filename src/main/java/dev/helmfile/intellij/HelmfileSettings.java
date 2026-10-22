@@ -8,11 +8,28 @@ import org.jetbrains.annotations.NotNull;
 @Service(Service.Level.PROJECT)
 @State(name = "HelmfileSettings", storages = @Storage("helmfile.xml"))
 public final class HelmfileSettings extends SimpleModificationTracker implements PersistentStateComponent<HelmfileSettings.State> {
-    public static final class State { public String environment = "default"; }
+    public static final class State {
+        public String environment = "default";
+        public String executable = "helmfile";
+        public String protectedEnvironments = "prod.*";
+    }
     private State state = new State();
     static HelmfileSettings get(Project project) { return project.getService(HelmfileSettings.class); }
     public String environment() { return state.environment; }
+    public String executable() { return state.executable; }
+    public String protectedEnvironments() { return state.protectedEnvironments; }
+    public void configure(String executable, String protectedEnvironments) {
+        this.state.executable = executable;
+        this.state.protectedEnvironments = protectedEnvironments;
+        incModificationCount();
+    }
     public void select(String environment) { state.environment = environment; incModificationCount(); }
     @Override public @NotNull State getState() { return state; }
-    @Override public void loadState(@NotNull State state) { this.state = state; if (state.environment == null || state.environment.isBlank()) state.environment = "default"; incModificationCount(); }
+    @Override public void loadState(@NotNull State state) {
+        this.state = state;
+        if (state.environment == null || state.environment.isBlank()) state.environment = "default";
+        if (state.executable == null || state.executable.isBlank()) state.executable = "helmfile";
+        if (state.protectedEnvironments == null) state.protectedEnvironments = "prod.*";
+        incModificationCount();
+    }
 }

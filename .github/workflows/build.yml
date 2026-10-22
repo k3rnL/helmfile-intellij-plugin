@@ -14,8 +14,13 @@ jobs:
           distribution: temurin
           java-version: '21'
       - uses: gradle/actions/setup-gradle@v4
-      - run: ./gradlew test buildPlugin verifyPluginProjectConfiguration
+      - run: ./gradlew test buildPlugin verifyPluginProjectConfiguration verifyPluginStructure verifyPlugin
       - uses: actions/upload-artifact@v4
         with:
           name: helmfile-plugin
           path: build/distributions/*.zip
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: plugin-verifier-reports
+          path: build/reports/pluginVerifier/

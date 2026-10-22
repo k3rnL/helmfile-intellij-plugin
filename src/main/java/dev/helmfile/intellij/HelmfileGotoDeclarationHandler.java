@@ -17,7 +17,7 @@ public final class HelmfileGotoDeclarationHandler implements GotoDeclarationHand
                 if (targets.size() < 2) return targets.toArray(PsiElement[]::new);
                 String path = String.join(".", value.path);
                 return new PsiElement[]{new HelmfileNavigationRequest(reference.getElement(), editor,
-                        HelmfileUsagePopup.declarations(reference.getElement(), path, targets), "Show declarations of " + path)};
+                        HelmfileUsagePopup.declarations(reference.getElement(), path, targets), "Show declarations of " + path).toPsi()};
             }
             YAMLFile yaml = HelmfileValues.yaml(file);
             PsiElement yamlElement = yaml == null ? null : yaml.findElementAt(offset);
@@ -30,6 +30,6 @@ public final class HelmfileGotoDeclarationHandler implements GotoDeclarationHand
         }
         YAMLKeyValue key = HelmfileSymbols.key(source);
         if (key == null || !HelmfileSymbols.isDeclaration(key)) return null;
-        return new PsiElement[]{new HelmfileNavigationRequest(key, editor, HelmfileUsagePopup.usages(key), "Show usages of " + key.getKeyText())};
+        return new PsiElement[]{new HelmfileNavigationRequest(key, editor, HelmfileUsagePopup.usages(key), "Show usages of " + key.getKeyText()).toPsi()};
     }
 }

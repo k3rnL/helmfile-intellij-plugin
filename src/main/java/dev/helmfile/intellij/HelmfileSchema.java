@@ -7,9 +7,10 @@ import org.jetbrains.yaml.YAMLFileType;
 import org.jetbrains.yaml.psi.*;
 
 final class HelmfileSchema {
-    record Field(String name, String type, String description) {
+    private static final String CHART_DEPENDENCIES_REFERENCE = "https://helmfile.readthedocs.io/en/latest/advanced-features/#adding-dependencies-without-forking-the-chart";
+    record Field(String name, String type, String description, String reference) {
         String html() { return "<div class='definition'><pre>" + name + ": " + type + "</pre></div><div class='content'>"
-                + FunctionCatalog.escape(description) + "<p><a href='https://helmfile.readthedocs.io/en/stable/configuration/'>Helmfile reference</a></p></div>"; }
+                + FunctionCatalog.escape(description) + "<p><a href='" + reference + "'>Helmfile reference</a></p></div>"; }
     }
     private static final Map<String, List<Field>> SCHEMA = new HashMap<>();
     static {
@@ -44,6 +45,7 @@ final class HelmfileSchema {
                 labels|map|Release labels used by Helmfile selectors.
                 installed|bool|Whether the release should be installed.
                 condition|string|Boolean state values path controlling the release.
+                dependencies|list|Additional chart dependencies added to this release's chart without forking it; each entry supports chart, version, and alias.
                 needs|list|Release dependencies, optionally qualified by context and namespace.
                 hooks|list|Commands executed on Helmfile lifecycle events.
                 inherit|list|Release templates to inherit.
@@ -68,6 +70,12 @@ final class HelmfileSchema {
                 strategicMergePatches|list|Strategic merge patches applied to manifests.
                 jsonPatches|list|JSON patches applied to manifests.
                 """);
+        // Helmfile's Dependency struct (pkg/state/helmx.go), rather than Helm's Chart.yaml schema.
+        fields("dependencies", """
+                chart|string|Dependency chart: repository/chart, local chart path, OCI reference, or go-getter URL.
+                version|string|Version or version constraint for the dependency chart.
+                alias|string|Alternative name for this chart dependency; allows multiple instances of the same chart.
+                """, CHART_DEPENDENCIES_REFERENCE);
         fields("repositories", """
                 name|string|Repository alias used in chart names.
                 url|string|Helm repository URL.
@@ -112,13 +120,19 @@ final class HelmfileSchema {
         SCHEMA.put("helmDefaults", SCHEMA.get("releases").stream().filter(f -> Set.of("kubeContext", "createNamespace", "wait", "waitForJobs", "timeout", "atomic", "cleanupOnFail", "force", "verify", "devel", "skipDeps", "historyMax", "reuseValues", "resetValues", "disableOpenAPIValidation").contains(f.name)).toList());
     }
     private static void fields(String context, String rows) {
-        SCHEMA.put(context, rows.strip().lines().map(row -> row.split("\\|", 3)).map(c -> new Field(c[0], c[1], c[2])).toList());
+        fields(context, rows, "https://helmfile.readthedocs.io/en/stable/configuration/");
+    }
+    private static void fields(String context, String rows, String reference) {
+        SCHEMA.put(context, rows.strip().lines().map(row -> row.split("\\|", 3))
+                .map(c -> new Field(c[0], c[1], c[2], c[0].equals("dependencies") ? CHART_DEPENDENCIES_REFERENCE : reference)).toList());
     }
     static String context(List<String> path) {
         if (path.isEmpty()) return "";
         String last = path.getLast();
         if (path.size() == 2 && path.getFirst().equals("environments")) return "environment";
         if (path.size() == 2 && path.getFirst().equals("templates")) return "releases";
+        if (last.equals("dependencies") && (path.equals(List.of("releases", "dependencies"))
+                || path.size() == 3 && path.getFirst().equals("templates"))) return "dependencies";
         if (path.equals(List.of("releases")) || path.equals(List.of("repositories")) || path.equals(List.of("helmDefaults")) || path.equals(List.of("helmfiles"))) return last;
         if (path.size() == 2 && path.getFirst().equals("releases")) {
             if (Set.of("hooks", "inherit").contains(last)) return last;

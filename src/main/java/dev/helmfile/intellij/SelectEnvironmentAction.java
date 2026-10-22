@@ -23,7 +23,7 @@ public final class SelectEnvironmentAction extends AnAction {
                 .setTitle("Helmfile environment (current: " + HelmfileSettings.get(project).environment() + ")")
                 .setItemChosenCallback(name -> {
                     HelmfileSettings.get(project).select(name);
-                    DaemonCodeAnalyzer.getInstance(project).restart();
+                    DaemonCodeAnalyzer.getInstance(project).restart(this);
                 }).createPopup().showInBestPositionFor(event.getDataContext());
     }
 }

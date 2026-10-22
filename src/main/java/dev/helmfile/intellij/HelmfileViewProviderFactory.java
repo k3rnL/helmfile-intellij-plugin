@@ -5,7 +5,6 @@ import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.psi.*;
 import com.intellij.psi.impl.source.PsiFileImpl;
 import com.intellij.psi.templateLanguages.*;
-import com.intellij.psi.tree.IElementType;
 import java.util.Set;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.yaml.YAMLLanguage;
@@ -24,7 +23,6 @@ public final class HelmfileViewProviderFactory implements FileViewProviderFactor
         @Override public @NotNull Language getBaseLanguage() { return HelmfileLanguage.INSTANCE; }
         @Override public @NotNull Language getTemplateDataLanguage() { return YAMLLanguage.INSTANCE; }
         @Override public @NotNull Set<Language> getLanguages() { return Set.of(HelmfileLanguage.INSTANCE, YAMLLanguage.INSTANCE); }
-        @Override public IElementType getContentElementType(@NotNull Language language) { return language == YAMLLanguage.INSTANCE ? YAML : null; }
         @Override protected PsiFileImpl createFile(@NotNull Language language) {
             if (language == YAMLLanguage.INSTANCE) {
                 YAMLFileImpl file = new YAMLFileImpl(this); file.setContentElementType(YAML); return file;

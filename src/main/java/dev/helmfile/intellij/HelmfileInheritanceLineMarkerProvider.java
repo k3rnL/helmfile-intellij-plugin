@@ -27,7 +27,7 @@ public final class HelmfileInheritanceLineMarkerProvider extends RelatedItemLine
         List<YAMLKeyValue> parents = HelmfileTemplates.parents(declaration);
         if (!parents.isEmpty()) result.add(NavigationGutterIconBuilder.create(AllIcons.Gutter.OverridingMethod)
                 .setTargets(parents).setTooltipText("Go to parent Helmfile template").setPopupTitle("Parent Helmfile templates").createLineMarkerInfo(element, (event, source) -> {
-                    if (parents.size() == 1) parents.getFirst().navigate(true);
+                    if (parents.size() == 1) com.intellij.util.PsiNavigateUtil.navigate(parents.getFirst());
                     else HelmfileUsagePopup.declarations(declaration, "parent templates", parents.stream().map(YAMLKeyValue::getKey).toList()).show(editor(event, declaration));
                 }));
         if (template) {

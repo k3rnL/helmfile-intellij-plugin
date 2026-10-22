@@ -34,9 +34,10 @@ public class HelmfileNavigationTest extends BasePlatformTestCase {
         HelmfileGotoDeclarationHandler handler = new HelmfileGotoDeclarationHandler();
         PsiElement[] targets = handler.getGotoDeclarationTargets(source, myFixture.getCaretOffset(), myFixture.getEditor());
         assertNotNull(targets); assertSize(1, targets);
-        assertInstanceOf(targets[0], HelmfileNavigationRequest.class);
-        assertTrue(((HelmfileNavigationRequest) targets[0]).popup.isDeclarationMode());
-        assertSize(2, ((HelmfileNavigationRequest) targets[0]).popup.results());
+        assertInstanceOf(targets[0], com.intellij.pom.PomTargetPsiElement.class);
+        HelmfileNavigationRequest request = (HelmfileNavigationRequest) ((com.intellij.pom.PomTargetPsiElement) targets[0]).getTarget();
+        assertTrue(request.popup.isDeclarationMode());
+        assertSize(2, request.popup.results());
         HelmfileSettings.get(getProject()).select("production");
         targets = handler.getGotoDeclarationTargets(source, myFixture.getCaretOffset(), myFixture.getEditor());
         assertSize(1, targets);
@@ -54,8 +55,8 @@ public class HelmfileNavigationTest extends BasePlatformTestCase {
         int offset = tag.getKey().getTextOffset();
         PsiElement[] usages = new HelmfileGotoDeclarationHandler().getGotoDeclarationTargets(tag.getKey(), offset, myFixture.getEditor());
         assertNotNull(usages); assertSize(1, usages);
-        assertInstanceOf(usages[0], HelmfileNavigationRequest.class);
-        assertSize(2, ((HelmfileNavigationRequest) usages[0]).popup.results());
+        assertInstanceOf(usages[0], com.intellij.pom.PomTargetPsiElement.class);
+        assertSize(2, ((HelmfileNavigationRequest) ((com.intellij.pom.PomTargetPsiElement) usages[0]).getTarget()).popup.results());
         assertTrue(new HelmfileFindUsagesHandlerFactory().canFindUsages(tag));
         assertNotNull(new HelmfileFindUsagesHandlerFactory().createFindUsagesHandler(tag, false));
     }
