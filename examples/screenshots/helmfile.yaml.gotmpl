@@ -1,0 +1,70 @@
+bases:
+  - base.yaml
+
+values:
+  - values/common.yaml
+
+environments:
+  dev:
+    values:
+      - environments/{{ .Environment.Name }}.yaml
+      - namespace: mission-dev
+        kubeContext: helmfile-screenshots
+  staging:
+    values:
+      - environments/{{ .Environment.Name }}.yaml
+      - namespace: mission-staging
+        kubeContext: helmfile-screenshots
+  prod-eu:
+    values:
+      - environments/{{ .Environment.Name }}.yaml
+      - namespace: mission-production
+        kubeContext: helmfile-screenshots
+
+---
+templates:
+  common:
+    namespace: '{{ .StateValues.namespace }}'
+    kubeContext: '{{ .StateValues.kubeContext }}'
+    createNamespace: true
+    missingFileHandler: Error
+    labels:
+      team: '{{ .StateValues.team }}'
+      environment: '{{ .Environment.Name }}'
+
+  service:
+    inherit:
+      - template: common
+    chart: ./charts/service
+    version: '{{ .StateValues.versions.service }}'
+    values:
+      - values/service.yaml.gotmpl
+
+releases:
+  - name: bootstrap
+    inherit:
+      - template: common
+    chart: ./charts/bootstrap
+
+  - name: api
+    inherit:
+      - template: service
+    version: '{{ .StateValues.versions.service }}'
+    dependencies:
+      - chart: ./charts/utils
+        version: '{{ .StateValues.versions.utils }}'
+        alias: utils
+    needs:
+      - '{{ .StateValues.kubeContext }}/{{ .StateValues.namespace }}/bootstrap'
+
+  - name: worker
+    inherit:
+      - template: service
+    needs:
+      - '{{ .StateValues.kubeContext }}/{{ .StateValues.namespace }}/api'
+
+  - name: scheduler
+    inherit:
+      - template: service
+    needs:
+      - '{{ .StateValues.kubeContext }}/{{ .StateValues.namespace }}/api'

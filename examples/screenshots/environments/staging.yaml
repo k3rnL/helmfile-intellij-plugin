@@ -1,0 +1,9 @@
+replicas: 2
+logLevel: info
+domain: staging.mission.example.com
+resources:
+  requests:
+    cpu: 250m
+    memory: 256Mi
+  limits:
+    memory: 512Mi

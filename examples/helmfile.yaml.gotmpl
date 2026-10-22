@@ -1,23 +1,89 @@
-values:
-  - values/common.yaml
+repositories:
+  - name: fluent-bit
+    url: https://fluent.github.io/helm-charts/
+  - name: spark-web-proxy
+    url: quay.io/okdp/charts
+    oci: true
+  - name: oauth2-proxy
+    url: https://oauth2-proxy.github.io/manifests
+
+# Some default state values are defined there to easier to render this file
+bases:
+  - .helmfile-utils/base.yaml
 
 environments:
-  default:
+  prod:
     values:
-      - values/default.yaml
-  production:
+      - createNamespace: false
+      - namespace: prod
+      - versions:
+          default: 1.11.0-SNAPSHOT
+          storage: 1.3.0
+          utils: 0.2.1
+      - envPath: k8s/prod
+  preprod:
     values:
-      - values/production.yaml
+      - createNamespace: false
+      - namespace: preprod
+      - versions:
+          default: 1.11.0-SNAPSHOT
+          storage: 1.3.0
+          utils: 0.2.1
+      - envPath: k8s/preprod
+
+helmDefaults:
+  wait: true # Wait for all resources to be ready before marking the release as successful
 
 ---
-repositories:
-  - name: bitnami
-    url: https://charts.bitnami.com/bitnami
+
+templates:
+  simple:
+    chart: charts/{{`{{ .Release.Name }}`}}
+    namespace: {{ .StateValues.namespace }}
+    createNamespace: {{ .StateValues.createNamespace }}
+    kubeContext: {{ .StateValues.kubeContext }}
+    missingFileHandler: Warn
+    values:
+      - '{{ .StateValues.envPath }}/values/{{`{{ .Release.Name }}`}}.yaml'
+  bare:
+    namespace: {{ .StateValues.namespace }}
+    createNamespace: {{ .StateValues.createNamespace }}
+    kubeContext: {{ .StateValues.kubeContext }}
+    missingFileHandler: Warn
 
 releases:
-  - name: {{ .Values.app.name }}
-    namespace: {{ .Environment.Name }}
-    chart: bitnami/nginx
-    version: {{ .Values.chartVersion | quote }}
+
+  - name: aws-cli
+    inherit:
+      - template: simple
+    version: {{ .StateValues.namespace }}
+    needs:
+      - {{ .StateValues.namespace }}/spark-jars
+
+  - name: secrets
+    chart: helm-charts/utils
+    version: {{ .StateValues.versions.utils | default 1.0.0 }}
+    inherit:
+      - template: bare
     values:
-      - values/app.yaml.gotmpl
+      - secrets:
+          {{ .StateValues.secrets | toYaml | nindent 10 }}
+
+  - name: fluentbit
+    inherit:
+      - template: simple
+    chart: fluent-bit/fluent-bit
+    needs:
+      - {{ .StateValues.namespace }}/secrets
+    values:
+      - {{ .StateValues.envPath }}/values/fluentbit.yaml
+
+  - name: spark-web-proxy
+    chart: spark-web-proxy/spark-web-proxy
+    inherit:
+      - template: bare
+    version: 0.1.0
+    needs:
+      - {{ .StateValues.namespace }}/secret-store
+    values:
+      - {{ .StateValues.envPath }}/values/spark-web-proxy.yaml

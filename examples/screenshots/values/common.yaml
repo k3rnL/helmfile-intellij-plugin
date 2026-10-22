@@ -1,0 +1,16 @@
+image:
+  repository: nginx
+  tag: "1.27.5"
+
+service:
+  port: 80
+
+features:
+  - audit
+  - metrics
+  - tracing
+
+extraEnv:
+  APP_NAME: mission-control
+  APP_TEAM: platform
+  OTEL_SERVICE_NAMESPACE: mission-control

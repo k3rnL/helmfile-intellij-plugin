@@ -9,7 +9,7 @@ Targets IntelliJ IDEA 2026.1 (build 261+) with the YAML plugin enabled. Java 21 
 ## Install
 
 Build with `./gradlew buildPlugin`, then open **Settings → Plugins → ⚙ → Install Plugin from Disk**,
-select `build/distributions/helmfile-intellij-plugin-0.3.2.zip`, and restart the IDE if prompted.
+select `build/distributions/helmfile-intellij-plugin-0.3.3.zip`, and restart the IDE if prompted.
 The first build downloads the IntelliJ SDK and Gradle dependencies.
 
 The plugin recognizes `helmfile.yaml`, `helmfile.yml`, `*.gotmpl`, and `_*.tpl` helper files as
@@ -85,6 +85,8 @@ Values paths are relative to the declaring state file. Local globs and paths con
 the nearest directory containing a canonical `helmfile.yaml[.gotmpl]` or `helmfile.yml[.gotmpl]`.
 Open [examples/helmfile.yaml.gotmpl](examples/helmfile.yaml.gotmpl) and
 [examples/values/app.yaml.gotmpl](examples/values/app.yaml.gotmpl) to try navigation and environment switching.
+For a fuller demo with local charts, environments, inheritance, chart dependencies, and a screenshot
+guide, open [examples/screenshots](examples/screenshots/README.md).
 
 This version resolves static YAML definitions. It does not render Helmfile, infer computed values,
 evaluate HCL, decrypt secrets, fetch remote files, or apply CLI state overrides. Functions such as

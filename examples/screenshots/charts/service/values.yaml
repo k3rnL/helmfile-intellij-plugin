@@ -1,0 +1,14 @@
+fullnameOverride: ""
+replicaCount: 1
+image:
+  repository: nginx
+  tag: "1.27.5"
+service:
+  port: 80
+podLabels: {}
+config: {}
+extraEnv: {}
+resources: {}
+priorityClassName: ""
+utils:
+  enabled: true

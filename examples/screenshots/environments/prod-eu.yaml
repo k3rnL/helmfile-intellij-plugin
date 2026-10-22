@@ -1,0 +1,9 @@
+replicas: 4
+logLevel: warn
+domain: mission.example.com
+resources:
+  requests:
+    cpu: 500m
+    memory: 512Mi
+  limits:
+    memory: 1Gi

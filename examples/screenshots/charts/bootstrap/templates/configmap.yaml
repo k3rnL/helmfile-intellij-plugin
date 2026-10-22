@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mission-bootstrap
+  namespace: {{ .Release.Namespace }}
+data:
+  platform: mission-control
+  purpose: helmfile-editor-demo

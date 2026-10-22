@@ -1,0 +1,34 @@
+{{- $name := printf "%s-%s" .Environment.Name .Release.Name -}}
+fullnameOverride: {{ $name | trunc 63 | trimSuffix "-" | quote }}
+replicaCount: {{ .StateValues.replicas }}
+
+image:
+  repository: {{ .Values.image.repository | required "image.repository is required" | quote }}
+  tag: {{ env "HELMFILE_DEMO_IMAGE_TAG" | default .Values.image.tag | quote }}
+
+service:
+  port: {{ .Values.service.port }}
+
+podLabels:
+  team: {{ .StateValues.team | lower | quote }}
+  environment: {{ .Environment.Name | quote }}
+
+config:
+  logLevel: {{ .StateValues.logLevel | upper | quote }}
+  domain: {{ .StateValues.domain | quote }}
+  channel: {{ index .Values "release-channel" | quote }}
+  features: {{ .Values.features | join "," | quote }}
+
+extraEnv:
+{{- range $key, $value := .Values.extraEnv }}
+  {{ $key }}: {{ $value | quote }}
+{{- end }}
+
+{{- if eq .Environment.Name "prod-eu" }}
+priorityClassName: mission-critical
+{{- else }}
+priorityClassName: ""
+{{- end }}
+
+resources:
+{{ .StateValues.resources | toYaml | indent 2 }}

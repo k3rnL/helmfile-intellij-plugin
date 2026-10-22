@@ -22,7 +22,7 @@ public final class HelmfileInheritanceLineMarkerProvider extends RelatedItemLine
         if (declaration == null) return;
         boolean template = HelmfileTemplates.isDeclaration(declaration);
         boolean release = declaration.getKeyText().equals("name") && HelmfileSchema.ancestors(declaration).equals(List.of("releases"));
-        PsiElement anchor = template ? declaration.getKey() : release ? declaration.getValue() : null;
+        PsiElement anchor = template || release ? declaration.getKey() : null;
         if (anchor == null || PsiTreeUtil.getDeepestFirst(anchor) != element) return;
         List<YAMLKeyValue> parents = HelmfileTemplates.parents(declaration);
         if (!parents.isEmpty()) result.add(NavigationGutterIconBuilder.create(AllIcons.Gutter.OverridingMethod)
@@ -33,7 +33,7 @@ public final class HelmfileInheritanceLineMarkerProvider extends RelatedItemLine
         if (template) {
             List<PsiElement> children = HelmfileUsageSearch.find(declaration, GlobalSearchScope.projectScope(declaration.getProject())).stream()
                     .filter(reference -> reference.getElement() instanceof YAMLScalar).map(reference -> HelmfileTemplates.owner((YAMLScalar) reference.getElement()))
-                    .filter(Objects::nonNull).map(child -> HelmfileTemplates.isDeclaration(child) ? child.getKey() : child.getValue()).filter(Objects::nonNull).distinct().toList();
+                    .filter(Objects::nonNull).map(YAMLKeyValue::getKey).filter(Objects::nonNull).distinct().toList();
             if (!children.isEmpty()) result.add(NavigationGutterIconBuilder.create(AllIcons.Gutter.OverridenMethod)
                     .setTargets(children).setTooltipText("Go to inheriting Helmfile releases or templates").setPopupTitle("Inheriting Helmfile releases and templates")
                     .createLineMarkerInfo(element, (event, source) -> HelmfileUsagePopup.usages(declaration).show(editor(event, declaration))));

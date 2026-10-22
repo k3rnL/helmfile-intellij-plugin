@@ -1,0 +1,6 @@
+values:
+  - team: platform
+    release-channel: stable
+    versions:
+      service: "0.1.0"
+      utils: "0.1.0"

@@ -2,6 +2,7 @@ package dev.helmfile.intellij;
 
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.psi.*;
+import com.intellij.psi.templateLanguages.OuterLanguageElement;
 import com.intellij.psi.util.PsiTreeUtil;
 import java.util.List;
 import org.jetbrains.yaml.psi.*;
@@ -23,7 +24,21 @@ final class HelmfileReleaseTarget {
     static YAMLKeyValue at(PsiFile file, int offset) {
         if (file == null || !HelmfileValues.supported(file)) return null;
         YAMLFile yaml = HelmfileValues.yaml(file);
-        return yaml == null ? null : declaration(yaml.findElementAt(Math.min(offset, Math.max(0, yaml.getTextLength() - 1))));
+        if (yaml == null || yaml.getTextLength() == 0) return null;
+        int position = Math.max(0, Math.min(offset, yaml.getTextLength() - 1));
+        var leaf = yaml.getNode().findLeafElementAt(position);
+        if (leaf == null) return null;
+        PsiElement element = leaf.getPsi();
+        if (element instanceof OuterLanguageElement) {
+            // A template-only value can sit outside its YAML mapping, especially at EOF.
+            // Recover its owner from the YAML immediately before it on the same line.
+            CharSequence text = yaml.getViewProvider().getContents();
+            int previous = leaf.getStartOffset() - 1;
+            while (previous >= 0 && (text.charAt(previous) == ' ' || text.charAt(previous) == '\t')) previous--;
+            if (previous < 0 || text.charAt(previous) == '\n' || text.charAt(previous) == '\r') return null;
+            element = yaml.findElementAt(previous);
+        }
+        return declaration(element);
     }
     static String literal(YAMLKeyValue key) {
         if (key == null || !(key.getValue() instanceof YAMLScalar scalar)) return "";
