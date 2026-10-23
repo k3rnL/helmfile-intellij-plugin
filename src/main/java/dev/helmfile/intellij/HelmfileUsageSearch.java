@@ -12,12 +12,13 @@ import org.jetbrains.yaml.psi.*;
 final class HelmfileUsageSearch {
     static List<PsiReference> find(YAMLKeyValue declaration, SearchScope scope) {
         Map<String, PsiReference> references = new LinkedHashMap<>();
+        boolean templateDeclaration = HelmfileTemplates.isDeclaration(declaration);
         PsiSearchHelper.getInstance(declaration.getProject()).processElementsWithWord((element, offsetInElement) -> {
             ProgressManager.checkCanceled();
             PsiFile file = element.getContainingFile();
             if (file == null) return true;
             int offset = element.getTextRange().getStartOffset() + offsetInElement;
-            if (HelmfileValues.supported(file)) {
+            if (!templateDeclaration && HelmfileValues.supported(file)) {
                 PsiFile template = file.getViewProvider().getPsi(HelmfileLanguage.INSTANCE);
                 PsiElement leaf = template == null ? null : template.findElementAt(offset);
                 var atom = PsiTreeUtil.getParentOfType(leaf, HelmfileParserDefinition.Atom.class, false);
@@ -27,7 +28,7 @@ final class HelmfileUsageSearch {
                             && declaration.getManager().areElementsEquivalent(definition.key(), declaration))) add(references, reference);
                 }
             }
-            if (HelmfileTemplates.isDeclaration(declaration)) {
+            if (templateDeclaration) {
                 YAMLFile yaml = HelmfileValues.yaml(file);
                 YAMLScalar scalar = yaml == null ? null : PsiTreeUtil.getParentOfType(yaml.findElementAt(offset), YAMLScalar.class, false);
                 if (scalar != null && HelmfileTemplates.isInheritance(scalar)) {

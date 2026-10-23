@@ -8,13 +8,12 @@ import com.intellij.openapi.actionSystem.CommonDataKeys;
 import com.intellij.openapi.editor.Editor;
 import com.intellij.openapi.fileEditor.FileEditorManager;
 import com.intellij.psi.*;
-import com.intellij.psi.search.GlobalSearchScope;
 import com.intellij.psi.util.PsiTreeUtil;
 import java.util.*;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.yaml.psi.*;
 
-public final class HelmfileInheritanceLineMarkerProvider extends RelatedItemLineMarkerProvider {
+public final class HelmfileInheritanceLineMarkerProvider extends RelatedItemLineMarkerProvider implements com.intellij.openapi.project.DumbAware {
     @Override public String getName() { return "Helmfile template inheritance"; }
     @Override protected void collectNavigationMarkers(@NotNull PsiElement element, @NotNull Collection<? super RelatedItemLineMarkerInfo<?>> result) {
         if (element.getFirstChild() != null) return;
@@ -30,10 +29,8 @@ public final class HelmfileInheritanceLineMarkerProvider extends RelatedItemLine
                     if (parents.size() == 1) com.intellij.util.PsiNavigateUtil.navigate(parents.getFirst());
                     else HelmfileUsagePopup.declarations(declaration, "parent templates", parents.stream().map(YAMLKeyValue::getKey).toList()).show(editor(event, declaration));
                 }));
-        if (template) {
-            List<PsiElement> children = HelmfileUsageSearch.find(declaration, GlobalSearchScope.projectScope(declaration.getProject())).stream()
-                    .filter(reference -> reference.getElement() instanceof YAMLScalar).map(reference -> HelmfileTemplates.owner((YAMLScalar) reference.getElement()))
-                    .filter(Objects::nonNull).map(YAMLKeyValue::getKey).filter(Objects::nonNull).distinct().toList();
+        if (template && !com.intellij.openapi.project.DumbService.isDumb(declaration.getProject())) {
+            List<PsiElement> children = HelmfileTemplates.children(declaration);
             if (!children.isEmpty()) result.add(NavigationGutterIconBuilder.create(AllIcons.Gutter.OverridenMethod)
                     .setTargets(children).setTooltipText("Go to inheriting Helmfile releases or templates").setPopupTitle("Inheriting Helmfile releases and templates")
                     .createLineMarkerInfo(element, (event, source) -> HelmfileUsagePopup.usages(declaration).show(editor(event, declaration))));

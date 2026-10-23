@@ -1,0 +1,20 @@
+name: Publish to JetBrains Marketplace
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    uses: ./.github/workflows/build.yml
+    with:
+      release_tag: ${{ github.event.release.tag_name }}
+      marketplace_channel: ${{ github.event.release.prerelease && 'eap' || 'default' }}
+    secrets:
+      PUBLISH_TOKEN: ${{ secrets.PUBLISH_TOKEN }}
+      CERTIFICATE_CHAIN: ${{ secrets.CERTIFICATE_CHAIN }}
+      PRIVATE_KEY: ${{ secrets.PRIVATE_KEY }}
+      PRIVATE_KEY_PASSWORD: ${{ secrets.PRIVATE_KEY_PASSWORD }}

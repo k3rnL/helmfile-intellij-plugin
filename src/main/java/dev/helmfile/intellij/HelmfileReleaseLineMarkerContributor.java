@@ -9,7 +9,7 @@ import java.util.Arrays;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.yaml.psi.YAMLKeyValue;
 
-public final class HelmfileReleaseLineMarkerContributor extends RunLineMarkerContributor {
+public final class HelmfileReleaseLineMarkerContributor extends RunLineMarkerContributor implements com.intellij.openapi.project.DumbAware {
     @Override public Info getInfo(@NotNull PsiElement element) {
         if (element.getFirstChild() != null) return null;
         YAMLKeyValue name = PsiTreeUtil.getParentOfType(element, YAMLKeyValue.class);

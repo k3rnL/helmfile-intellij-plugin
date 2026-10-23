@@ -5,7 +5,7 @@ import com.intellij.openapi.editor.Editor;
 import com.intellij.psi.*;
 import org.jetbrains.yaml.psi.*;
 
-public final class HelmfileGotoDeclarationHandler implements GotoDeclarationHandler {
+public final class HelmfileGotoDeclarationHandler implements GotoDeclarationHandler, com.intellij.openapi.project.DumbAware {
     @Override public PsiElement[] getGotoDeclarationTargets(PsiElement source, int offset, Editor editor) {
         if (source == null) return null;
         PsiFile file = source.getContainingFile();
@@ -22,12 +22,25 @@ public final class HelmfileGotoDeclarationHandler implements GotoDeclarationHand
             YAMLFile yaml = HelmfileValues.yaml(file);
             PsiElement yamlElement = yaml == null ? null : yaml.findElementAt(offset);
             YAMLScalar scalar = com.intellij.psi.util.PsiTreeUtil.getParentOfType(yamlElement, YAMLScalar.class, false);
+            if (scalar != null) {
+                var repository = HelmfileRepositories.reference(scalar);
+                if (repository != null && repository.getRangeInElement().shiftRight(scalar.getTextOffset()).containsOffset(offset)) {
+                    PsiElement target = repository.resolve();
+                    if (target != null) return new PsiElement[]{target};
+                }
+                var chart = HelmfileChartNavigation.reference(scalar);
+                if (chart != null && chart.getRangeInElement().shiftRight(scalar.getTextOffset()).containsOffset(offset)) {
+                    PsiElement target = chart.resolve();
+                    if (target != null) return new PsiElement[]{target};
+                }
+            }
             if (scalar != null && HelmfileTemplates.isInheritance(scalar)) {
                 PsiElement target = new HelmfileTemplates.TemplateReference(scalar).resolve();
                 return target == null ? null : new PsiElement[]{target};
             }
             if (yamlElement != null) source = yamlElement;
         }
+        if (com.intellij.openapi.project.DumbService.isDumb(file.getProject())) return null;
         YAMLKeyValue key = HelmfileSymbols.key(source);
         if (key == null || !HelmfileSymbols.isDeclaration(key)) return null;
         return new PsiElement[]{new HelmfileNavigationRequest(key, editor, HelmfileUsagePopup.usages(key), "Show usages of " + key.getKeyText()).toPsi()};

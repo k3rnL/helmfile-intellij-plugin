@@ -7,7 +7,7 @@ import com.intellij.psi.impl.light.LightElement;
 import com.intellij.psi.util.PsiTreeUtil;
 import org.jetbrains.yaml.psi.YAMLKeyValue;
 
-public final class HelmfileDocumentationProvider extends AbstractDocumentationProvider {
+public final class HelmfileDocumentationProvider extends AbstractDocumentationProvider implements com.intellij.openapi.project.DumbAware {
     static FunctionCatalog.Function functionAt(PsiFile file, int offset) {
         if (!HelmfileValues.supported(file)) return null;
         String text = file.getViewProvider().getContents().toString();
@@ -37,6 +37,10 @@ public final class HelmfileDocumentationProvider extends AbstractDocumentationPr
             return new DocElement(manager, element == null ? null : element.getContainingFile(), function.name(), function.html());
         }
         if (object instanceof HelmfileSchema.Field field) return new DocElement(manager, element == null ? null : element.getContainingFile(), field.name(), field.html());
+        if (object instanceof HelmfileRepositoryCompletion.Suggestion suggestion) return new DocElement(manager,
+                element == null ? null : element.getContainingFile(), suggestion.text(), "<div class='definition'><pre>"
+                + FunctionCatalog.escape(suggestion.text()) + "</pre></div><div class='content'>Repository: "
+                + FunctionCatalog.escape(suggestion.repository()) + "<p>" + FunctionCatalog.escape(suggestion.description()) + "</p></div>");
         if (object instanceof HelmfileValues.Definition definition) {
             String environment = definition.environment() == null ? HelmfileSettings.get(manager.getProject()).environment() : definition.environment();
             String path = definition.path().replace(HelmfileValues.SEPARATOR, ".");

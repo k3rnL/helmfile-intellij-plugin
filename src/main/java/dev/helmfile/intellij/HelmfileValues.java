@@ -37,35 +37,41 @@ final class HelmfileValues {
     private static final List<String> STATE_NAMES = List.of("helmfile.yaml.gotmpl", "helmfile.yml.gotmpl", "helmfile.yaml", "helmfile.yml");
     private static final Pattern ENV_NAME = Pattern.compile("\\{\\{-?\\s*\\.Environment\\.Name\\s*-?}}");
     static boolean supported(PsiFile file) { return file != null && file.getViewProvider().getBaseLanguage() == HelmfileLanguage.INSTANCE; }
+    static PsiFile original(PsiFile file) {
+        PsiFile original = file.getOriginalFile();
+        PsiFile base = original.getViewProvider().getPsi(original.getViewProvider().getBaseLanguage());
+        return base == null ? original : base.getOriginalFile();
+    }
     static YAMLFile yaml(PsiFile file) {
         PsiFile yaml = file.getViewProvider().getPsi(YAMLLanguage.INSTANCE);
         return yaml instanceof YAMLFile f ? f : null;
     }
     static Model model(PsiFile file) {
-        PsiFile original = file.getOriginalFile();
+        PsiFile original = original(file);
         return CachedValuesManager.getManager(file.getProject()).getCachedValue(original, MODEL, () -> {
-            Builder builder = new Builder(original, HelmfileSettings.get(file.getProject()).environment());
+            Builder builder = new Builder(original, HelmfileSettings.get(original.getProject()).environment());
             return CachedValueProvider.Result.create(builder.build(), PsiModificationTracker.MODIFICATION_COUNT,
-                    VirtualFileManager.VFS_STRUCTURE_MODIFICATIONS, HelmfileSettings.get(file.getProject()));
+                    VirtualFileManager.VFS_STRUCTURE_MODIFICATIONS, HelmfileSettings.get(original.getProject()));
         }, false);
     }
     /** Reverse lookup follows the declaration's environment, independently of the editor selection. */
     static List<Definition> allDefinitions(PsiFile file) {
-        return CachedValuesManager.getManager(file.getProject()).getCachedValue(file.getOriginalFile(), ALL_DEFINITIONS, () -> {
-            PsiFile state = stateFor(file);
-            Set<String> pending = new LinkedHashSet<>(List.of("default", HelmfileSettings.get(file.getProject()).environment()));
+        PsiFile original = original(file);
+        return CachedValuesManager.getManager(original.getProject()).getCachedValue(original, ALL_DEFINITIONS, () -> {
+            PsiFile state = stateFor(original);
+            Set<String> pending = new LinkedHashSet<>(List.of("default", HelmfileSettings.get(original.getProject()).environment()));
             Set<String> visited = new HashSet<>();
             List<Definition> definitions = new ArrayList<>();
             while (!pending.isEmpty()) {
                 String environment = pending.iterator().next(); pending.remove(environment);
                 if (!visited.add(environment)) continue;
-                Builder builder = new Builder(file, environment);
+                Builder builder = new Builder(original, environment);
                 builder.resolve(state);
                 definitions.addAll(builder.values.values());
                 pending.addAll(builder.environments.stream().filter(name -> !visited.contains(name)).toList());
             }
             return CachedValueProvider.Result.create(definitions.stream().distinct().toList(), PsiModificationTracker.MODIFICATION_COUNT,
-                    VirtualFileManager.VFS_STRUCTURE_MODIFICATIONS, HelmfileSettings.get(file.getProject()));
+                    VirtualFileManager.VFS_STRUCTURE_MODIFICATIONS, HelmfileSettings.get(original.getProject()));
         }, false);
     }
     static PsiFile stateFor(PsiFile file) {

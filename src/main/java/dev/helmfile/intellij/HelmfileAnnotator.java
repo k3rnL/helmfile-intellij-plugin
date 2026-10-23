@@ -6,7 +6,7 @@ import com.intellij.psi.*;
 import java.util.*;
 import org.jetbrains.annotations.NotNull;
 
-public final class HelmfileAnnotator implements Annotator {
+public final class HelmfileAnnotator implements Annotator, com.intellij.openapi.project.DumbAware {
     @Override public void annotate(@NotNull PsiElement element, @NotNull AnnotationHolder holder) {
         if (!(element instanceof HelmfileParserDefinition.File)) return;
         String text = element.getText();

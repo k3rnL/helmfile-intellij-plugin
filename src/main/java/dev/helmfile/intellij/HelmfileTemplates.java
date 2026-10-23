@@ -12,6 +12,7 @@ import org.jetbrains.yaml.psi.*;
 
 final class HelmfileTemplates {
     private static final Key<CachedValue<Map<String, YAMLKeyValue>>> TEMPLATES = Key.create("helmfile.templates");
+    private static final Key<CachedValue<List<SmartPsiElementPointer<PsiElement>>>> CHILDREN = Key.create("helmfile.template.children");
     static boolean isInheritance(YAMLScalar scalar) {
         List<String> path = HelmfileSchema.ancestors(scalar);
         return path.equals(List.of("releases", "inherit", "template"))
@@ -19,11 +20,12 @@ final class HelmfileTemplates {
     }
     static boolean isDeclaration(YAMLKeyValue key) { return HelmfileSchema.ancestors(key).equals(List.of("templates")); }
     static Map<String, YAMLKeyValue> declarations(PsiFile file) {
-        return CachedValuesManager.getManager(file.getProject()).getCachedValue(file.getOriginalFile(), TEMPLATES, () -> {
+        PsiFile original = HelmfileValues.original(file);
+        return CachedValuesManager.getManager(original.getProject()).getCachedValue(original, TEMPLATES, () -> {
             Map<String, YAMLKeyValue> result = new LinkedHashMap<>();
-            collect(HelmfileValues.stateFor(file), result, new HashSet<>(), 0);
+            collect(HelmfileValues.stateFor(original), result, new HashSet<>(), 0);
             return CachedValueProvider.Result.create(Map.copyOf(result), PsiModificationTracker.MODIFICATION_COUNT,
-                    VirtualFileManager.VFS_STRUCTURE_MODIFICATIONS, HelmfileSettings.get(file.getProject()));
+                    VirtualFileManager.VFS_STRUCTURE_MODIFICATIONS, HelmfileSettings.get(original.getProject()));
         }, false);
     }
     private static void collect(PsiFile file, Map<String, YAMLKeyValue> result, Set<PsiFile> visiting, int depth) {
@@ -65,6 +67,17 @@ final class HelmfileTemplates {
         if (inherit == null) return List.of();
         return PsiTreeUtil.findChildrenOfType(inherit, YAMLScalar.class).stream().filter(HelmfileTemplates::isInheritance)
                 .map(scalar -> declarations(scalar.getContainingFile()).get(scalar.getTextValue())).filter(Objects::nonNull).distinct().toList();
+    }
+    static List<PsiElement> children(YAMLKeyValue declaration) {
+        List<SmartPsiElementPointer<PsiElement>> pointers = CachedValuesManager.getManager(declaration.getProject()).getCachedValue(declaration, CHILDREN, () -> {
+            var targets = HelmfileUsageSearch.find(declaration, com.intellij.psi.search.GlobalSearchScope.projectScope(declaration.getProject())).stream()
+                    .filter(reference -> reference.getElement() instanceof YAMLScalar).map(reference -> owner((YAMLScalar) reference.getElement()))
+                    .filter(Objects::nonNull).map(YAMLKeyValue::getKey).filter(Objects::nonNull).distinct()
+                    .map(SmartPointerManager::createPointer).toList();
+            return CachedValueProvider.Result.create(targets, PsiModificationTracker.MODIFICATION_COUNT,
+                    VirtualFileManager.VFS_STRUCTURE_MODIFICATIONS, HelmfileSettings.get(declaration.getProject()));
+        }, false);
+        return pointers.stream().map(SmartPsiElementPointer::getElement).filter(Objects::nonNull).toList();
     }
     static final class TemplateReference extends PsiReferenceBase<YAMLScalar> {
         TemplateReference(YAMLScalar scalar) {

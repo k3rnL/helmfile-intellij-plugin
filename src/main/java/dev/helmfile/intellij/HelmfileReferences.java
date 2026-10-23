@@ -102,6 +102,11 @@ final class HelmfileReferences {
             return new PsiReference[]{new HelmfileTemplates.TemplateReference(scalar)};
         }
         if (!HelmfileValues.supported(scalar.getContainingFile())) return PsiReference.EMPTY_ARRAY;
+        var repository = HelmfileRepositories.reference(scalar);
+        var chart = HelmfileChartNavigation.reference(scalar);
+        if (repository != null && chart != null) return new PsiReference[]{repository, chart};
+        if (repository != null) return new PsiReference[]{repository};
+        if (chart != null) return new PsiReference[]{chart};
         List<String> parents = HelmfileSchema.ancestors(scalar);
         if (parents.isEmpty()) return PsiReference.EMPTY_ARRAY;
         String last = parents.getLast();

@@ -11,13 +11,19 @@ public final class HelmfileSettings extends SimpleModificationTracker implements
     public static final class State {
         public String environment = "default";
         public String executable = "helmfile";
+        public String helmExecutable = "helm";
         public String protectedEnvironments = "prod.*";
+        public boolean repositoryDownloads = true;
     }
     private State state = new State();
     static HelmfileSettings get(Project project) { return project.getService(HelmfileSettings.class); }
     public String environment() { return state.environment; }
     public String executable() { return state.executable; }
+    public String helmExecutable() { return state.helmExecutable; }
+    public void helmExecutable(String executable) { state.helmExecutable = executable; incModificationCount(); }
     public String protectedEnvironments() { return state.protectedEnvironments; }
+    public boolean repositoryDownloads() { return state.repositoryDownloads; }
+    public void repositoryDownloads(boolean enabled) { state.repositoryDownloads = enabled; incModificationCount(); }
     public void configure(String executable, String protectedEnvironments) {
         this.state.executable = executable;
         this.state.protectedEnvironments = protectedEnvironments;
@@ -29,6 +35,7 @@ public final class HelmfileSettings extends SimpleModificationTracker implements
         this.state = state;
         if (state.environment == null || state.environment.isBlank()) state.environment = "default";
         if (state.executable == null || state.executable.isBlank()) state.executable = "helmfile";
+        if (state.helmExecutable == null || state.helmExecutable.isBlank()) state.helmExecutable = "helm";
         if (state.protectedEnvironments == null) state.protectedEnvironments = "prod.*";
         incModificationCount();
     }

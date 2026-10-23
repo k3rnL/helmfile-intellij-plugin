@@ -7,7 +7,7 @@ plugins {
 }
 
 group = "dev.helmfile.intellij"
-version = "0.3.3"
+version = "0.4.2"
 
 repositories {
     mavenCentral()
@@ -15,6 +15,7 @@ repositories {
 }
 
 dependencies {
+    implementation("org.snakeyaml:snakeyaml-engine:3.2")
     intellijPlatform {
         val idePath = providers.gradleProperty("localIdePath").orNull
         if (idePath != null) local(idePath) else intellijIdea("2026.1.5")
@@ -32,6 +33,15 @@ intellijPlatform {
         ideaVersion { sinceBuild = "261" }
     }
     buildSearchableOptions = false
+    publishing {
+        token = providers.environmentVariable("PUBLISH_TOKEN")
+        channels = providers.gradleProperty("marketplaceChannel").map { listOf(it) }.orElse(listOf("default"))
+    }
+    signing {
+        certificateChain = providers.environmentVariable("CERTIFICATE_CHAIN")
+        privateKey = providers.environmentVariable("PRIVATE_KEY")
+        password = providers.environmentVariable("PRIVATE_KEY_PASSWORD")
+    }
     pluginVerification {
         failureLevel = VerifyPluginTask.FailureLevel.ALL
         ides {
@@ -39,6 +49,24 @@ intellijPlatform {
             providers.gradleProperty("verificationIdePath").orNull?.let { local(it) }
         }
     }
+}
+
+tasks.register("verifyReleaseVersion") {
+    val pluginReleaseVersion = project.version.toString()
+    val releaseTag = providers.environmentVariable("RELEASE_TAG")
+    group = "verification"
+    description = "Check that RELEASE_TAG matches the plugin version before publishing."
+    inputs.property("pluginVersion", pluginReleaseVersion)
+    inputs.property("releaseTag", releaseTag.orElse(""))
+    doLast {
+        check(releaseTag.orNull == "v$pluginReleaseVersion") {
+            "Release tag must be v$pluginReleaseVersion (the version in build.gradle.kts); received '${releaseTag.orNull.orEmpty()}'."
+        }
+    }
+}
+
+tasks.named("verifyPluginSignature") {
+    dependsOn(tasks.named("signPlugin"))
 }
 
 tasks.test {

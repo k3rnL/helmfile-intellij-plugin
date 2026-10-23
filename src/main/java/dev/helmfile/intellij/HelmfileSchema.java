@@ -82,11 +82,16 @@ final class HelmfileSchema {
                 oci|bool|Treat this repository as an OCI registry.
                 username|string|Repository authentication username.
                 password|string|Repository authentication password.
+                registryConfig|string|Path to Helm registry authentication configuration.
+                managed|string|How Helmfile manages this repository.
                 certFile|string|TLS client certificate file.
                 keyFile|string|TLS client key file.
                 caFile|string|CA certificate file.
                 skipTLSVerify|bool|Skip TLS certificate verification.
                 passCredentials|bool|Forward repository credentials to other domains.
+                plainHttp|bool|Connect to the repository or OCI registry over plain HTTP.
+                verify|bool|Verify chart provenance from this repository.
+                keyring|string|Keyring used to verify chart provenance.
                 """);
         fields("environment", """
                 values|list|YAML, templated YAML, HCL files, or inline state values for this environment.

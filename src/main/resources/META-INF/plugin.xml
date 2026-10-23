@@ -7,6 +7,8 @@
       environment selection, bidirectional values navigation, Find Usages, template inheritance
       gutter navigation, and configurable colors and documentation for Go, Sprig, and Helmfile functions.
       Run template, apply, delete, and destroy for individual releases with environment protection.
+      Complete repository aliases, chart names, and versions, with repository validation and navigation.
+      Browse downloaded chart sources as read-only folders under External Libraries.
     ]]></description>
     <depends>com.intellij.modules.platform</depends>
     <depends>org.jetbrains.plugins.yaml</depends>
@@ -14,6 +16,8 @@
         <projectConfigurable parentId="tools" id="dev.helmfile.settings" displayName="Helmfile"
                              instance="dev.helmfile.intellij.HelmfileConfigurable"/>
         <configurationType implementation="dev.helmfile.intellij.HelmfileRunConfigurationType"/>
+        <additionalLibraryRootsProvider implementation="dev.helmfile.intellij.HelmfileChartLibraryProvider"/>
+        <notificationGroup id="Helmfile repositories" displayType="BALLOON"/>
         <runLineMarkerContributor language="yaml" implementationClass="dev.helmfile.intellij.HelmfileReleaseLineMarkerContributor"/>
         <fileType name="Helmfile Template" language="Helmfile" implementationClass="dev.helmfile.intellij.HelmfileFileType"
                   fieldName="INSTANCE" fileNames="helmfile.yaml;helmfile.yml" extensions="gotmpl" patterns="_*.tpl"/>
@@ -31,6 +35,9 @@
         <gotoDeclarationHandler implementation="dev.helmfile.intellij.HelmfileGotoDeclarationHandler" order="first"/>
         <codeInsight.lineMarkerProvider language="yaml" implementationClass="dev.helmfile.intellij.HelmfileInheritanceLineMarkerProvider"/>
         <annotator language="Helmfile" implementationClass="dev.helmfile.intellij.HelmfileAnnotator"/>
+        <localInspection language="yaml" shortName="HelmfileRepositories" displayName="Helmfile chart repositories"
+                         groupName="Helmfile" enabledByDefault="true" level="WARNING"
+                         implementationClass="dev.helmfile.intellij.HelmfileRepositoryInspection"/>
         <intentionAction>
             <className>dev.helmfile.intellij.FunctionDocumentationIntention</className>
             <category>Helmfile</category>
@@ -46,6 +53,10 @@
         </group>
         <action id="Helmfile.SelectEnvironment" class="dev.helmfile.intellij.SelectEnvironmentAction"
                 text="Helmfile: Select Environment" description="Select the Helmfile environment used for values completion and navigation">
+            <add-to-group group-id="ToolsMenu" anchor="last"/>
+        </action>
+        <action id="Helmfile.RefreshRepositories" class="dev.helmfile.intellij.RefreshRepositoriesAction"
+                text="Helmfile: Refresh Chart Repositories" description="Refresh chart names and versions from the current Helmfile's repositories">
             <add-to-group group-id="ToolsMenu" anchor="last"/>
         </action>
     </actions>

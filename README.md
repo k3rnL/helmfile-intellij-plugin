@@ -9,7 +9,7 @@ Targets IntelliJ IDEA 2026.1 (build 261+) with the YAML plugin enabled. Java 21 
 ## Install
 
 Build with `./gradlew buildPlugin`, then open **Settings → Plugins → ⚙ → Install Plugin from Disk**,
-select `build/distributions/helmfile-intellij-plugin-0.3.3.zip`, and restart the IDE if prompted.
+select `build/distributions/helmfile-intellij-plugin-0.4.2.zip`, and restart the IDE if prompted.
 The first build downloads the IntelliJ SDK and Gradle dependencies.
 
 The plugin recognizes `helmfile.yaml`, `helmfile.yml`, `*.gotmpl`, and `_*.tpl` helper files as
@@ -22,6 +22,11 @@ If another installed plugin already owns a filename, select Helmfile Template in
 | Task | How |
 | --- | --- |
 | Complete Helmfile YAML fields | Press **Ctrl+Space** at a mapping key, including inside releases, chart dependencies (`chart`, `version`, `alias`), repositories, environments, hooks, and Helm defaults. |
+| Complete repositories and charts | Press **Ctrl+Space** in `chart:` for declared repository aliases; after `repository/`, complete chart names from its downloaded index. |
+| Complete chart versions | Press **Ctrl+Space** in `version:` for available versions of the associated chart, newest first. |
+| Navigate to a repository | **Ctrl+Click / Ctrl+B** on the repository prefix in `chart: repository/chart`. |
+| Browse a chart | **Ctrl+Click / Ctrl+B** on the chart-name segment. Opens `Chart.yaml` and adds the complete chart folder under **External Libraries**. |
+| Refresh repository metadata | **Tools → Helmfile: Refresh Chart Repositories**, also available through **Find Action** and inspection quick fixes. |
 | Complete state values | Type `{{ .Values.`, `{{ .StateValues.`, or a nested path such as `{{ .StateValues.versions.` and press **Ctrl+Space**. |
 | Navigate to a value definition | **Ctrl+Click / Ctrl+B** on a path segment in `.Values`, `.StateValues`, `.Environment.Values`, or `$.Values`. |
 | Navigate back to usages | **Ctrl+Click / Ctrl+B** on a values key or template declaration; **Alt+F7** opens Find Usages across the project. |
@@ -60,6 +65,72 @@ usages in releases after a `---` separator, even when another environment is sel
 Usage searches use the word index to inspect Helmfile-owned references only. They do not
 resolve unrelated Kubernetes YAML references, contact a cluster, or load kubeconfig files.
 
+## Repository completion and validation
+
+Declare repositories using [Helmfile's repository configuration](https://helmfile.readthedocs.io/en/latest/configuration/).
+Repository aliases complete immediately. Chart names and versions load in the background when
+needed; invoke completion again after loading, or use **Tools → Helmfile: Refresh Chart Repositories**
+to load them ahead of time. Downloads use IntelliJ's proxy settings and native background progress.
+The refresh action reports how many indexes or OCI tag lists were loaded.
+
+Completion works in releases, reusable templates, and `dependencies` entries, across `---` separators
+and local `bases`. Version completion also follows a chart inherited from a template. For HTTP(S)
+repositories, the plugin reads `index.yaml` without downloading chart archives. For OCI charts,
+it requests the known chart's registry tags for version completion, including paginated responses
+and bearer authentication. OCI chart-name completion falls back to the declared repository alias.
+Direct `oci://` chart references support version completion too.
+
+The native **Helmfile chart repositories** inspection checks missing repository names/URLs,
+duplicate aliases, undeclared repository prefixes, missing charts, and unavailable exact versions.
+Chart and version warnings require a successfully loaded index or tag list. Local charts, remote
+chart URLs, unresolved templates, and Helm version constraints are excluded from checks which
+cannot be resolved statically. Missing or dynamic base files suppress uncertain alias warnings.
+Change the inspection severity or disable it through **Editor → Inspections → Helmfile**.
+
+Metadata is cached in memory for the current project session. Successful results refresh after five
+minutes when needed; failed requests retry after one minute. An unavailable repository preserves
+previously downloaded suggestions and repository-alias completion, and suppresses chart/version
+warnings until a refresh succeeds. **Settings → Tools → Helmfile** can disable automatic downloads;
+the explicit refresh action remains available. Responses are bounded to 32 MiB.
+
+Downloads support static `username`/`password`, Helmfile's repository environment credentials,
+`caFile`, `skipTLSVerify`, and client certificates with unencrypted PKCS#8 PEM keys. Registry
+credentials are forwarded to another origin only with `passCredentials: true`. Simple state-value
+paths and `.Environment.Name` in repository settings resolve statically. Other Go expressions,
+secret providers, Helm's credential store, and external downloader plugins are not executed;
+repository-alias completion remains available when metadata cannot be loaded.
+
+### Browse chart sources
+
+For `chart: bigdata-helm-charts/bgdmar-utils`, Ctrl+Click on `bigdata-helm-charts` opens its
+repository declaration; Ctrl+Click on `bgdmar-utils` opens the chart. A local chart directory
+opens its own `Chart.yaml` directly. Remote HTTP(S) and OCI charts download on demand through
+[`helm pull`](https://helm.sh/docs/helm/helm_pull/), using the release's version or version constraint.
+Version settings inherited from templates and simple state-value paths, including `default` and
+`quote` pipelines, are supported. If a state value is unresolved, a standard IntelliJ popup lets
+you select the environment and retry opening the chart. You can also select it beforehand with
+**Tools → Helmfile: Select Environment**. The choice applies to completion and navigation across
+the project. Expressions that require executing Go template functions remain unsupported and
+produce a notification naming the selected environment, instead of opening a different version.
+
+Downloaded charts appear as named, read-only folders in **Project → External Libraries**. Expand
+the chart to browse `templates`, `values.yaml`, `README.md`, and other packaged files. The folders
+are restored from cache when the project reopens. Cached source archives live in the IDE's system
+cache; pinned versions are reused, and version ranges or unpinned charts refresh after five minutes.
+The plugin stores only chart-folder metadata in the project's workspace settings. It does not add
+module dependencies or content roots to the project configuration.
+
+Install Helm and configure **Settings → Tools → Helmfile → Helm executable** if it is not on the
+IDE's PATH. Downloads use Helm's repository and OCI authentication support, including its registry
+credential store. Static repository credentials, TLS settings, registry configuration, and chart
+provenance options are forwarded where declared. Chart downloads and archive processing run in
+cancellable IntelliJ background tasks; Ctrl-hover and initial file analysis never download chart
+source packages. Opening a Helmfile may load repository indexes for validation; these requests are
+batched in the background, and editing and completion do not wait for the response.
+Local completion, forward navigation, syntax diagnostics, and release gutters are available while
+IntelliJ indexes the project. Project-wide usage searches and downward inheritance arrows wait
+until the index is ready.
+
 ## Values resolution
 
 The initial environment is `default`; the selected environment is saved per project.
@@ -89,7 +160,7 @@ For a fuller demo with local charts, environments, inheritance, chart dependenci
 guide, open [examples/screenshots](examples/screenshots/README.md).
 
 This version resolves static YAML definitions. It does not render Helmfile, infer computed values,
-evaluate HCL, decrypt secrets, fetch remote files, or apply CLI state overrides. Functions such as
+evaluate HCL, decrypt secrets, fetch remote values/base files, or apply CLI state overrides. Functions such as
 `exec`, `envExec`, and `fetchSecretValue` are documented but never executed by the editor.
 Arbitrary Go variable aliases, dot changes inside `with`/`range`, named-template expansion,
 and the context passed from parent Helmfiles are not inferred. Multiple Helmfiles sharing a
@@ -156,6 +227,36 @@ To use an installed SDK instead of downloading one:
 `verifyPlugin` checks the build SDK and fails on API-usage warnings as well as compatibility problems.
 To check another installed IDE in the same run, add `-PverificationIdePath=/absolute/path/to/other/idea`.
 CI runs the verifier and saves its reports as an artifact.
+
+### CI and Marketplace releases
+
+GitHub Actions runs tests, builds the plugin ZIP, and checks plugin structure and IntelliJ API
+compatibility on pushes to `main` and pull requests. The **Build** workflow can also be run manually
+from the Actions tab. Its artifacts contain the installable ZIP, test results, and verifier reports.
+
+Publishing uses JetBrains' [`publishPlugin` Gradle task](https://plugins.jetbrains.com/docs/intellij/publishing-plugin.html).
+Set up the credentials once in the repository's
+[Actions secrets](https://github.com/k3rnL/helmfile-intellij-plugin/settings/secrets/actions):
+
+| Secret | Purpose |
+| --- | --- |
+| `PUBLISH_TOKEN` | Required. Create a publishing token in [JetBrains Marketplace → My Tokens](https://plugins.jetbrains.com/author/me/tokens), using an account allowed to update Helmfile. |
+| `CERTIFICATE_CHAIN` and `PRIVATE_KEY` | Optional author signing. Provide both PEM values, following [JetBrains' signing guide](https://plugins.jetbrains.com/docs/intellij/plugin-signing.html). |
+| `PRIVATE_KEY_PASSWORD` | Password for the signing key, if encrypted. |
+
+To publish an update:
+
+1. Change `version` in `build.gradle.kts`, commit, and push the changes to `main`.
+2. Create a [GitHub release](https://github.com/k3rnL/helmfile-intellij-plugin/releases/new) with
+   the matching tag, for example `v0.4.2` for version `0.4.2`, and publish it.
+3. The release workflow checks that the tag matches the plugin version, runs all CI checks, and
+   uploads the built plugin to Marketplace. A failed check stops publication. Marketplace approval
+   is still handled by JetBrains.
+
+Normal GitHub releases publish to Marketplace's stable channel; releases marked **Pre-release**
+publish to `eap`. Use a new version and release when moving from EAP to stable. Creating a draft
+or pushing a tag alone does not publish an update. Credentials are passed only to release steps;
+the publication command disables Gradle's configuration cache to keep credentials out of it.
 
 The tests run inside the IntelliJ fixture and cover file recognition, YAML trees containing Go
 templates, context completion, values precedence, environment isolation, navigation, documentation,

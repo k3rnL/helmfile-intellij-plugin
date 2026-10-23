@@ -7,7 +7,7 @@ import java.util.*;
 import java.util.regex.*;
 import org.jetbrains.annotations.NotNull;
 
-public final class HelmfileCompletionContributor extends CompletionContributor {
+public final class HelmfileCompletionContributor extends CompletionContributor implements com.intellij.openapi.project.DumbAware {
     private static final Pattern PATH = Pattern.compile("(\\$?\\.(?:Values|StateValues|Environment\\.Values)\\.)([A-Za-z0-9_.]*)$");
     @Override public void fillCompletionVariants(@NotNull CompletionParameters parameters, @NotNull CompletionResultSet result) {
         PsiFile file = parameters.getOriginalFile();
@@ -17,6 +17,7 @@ public final class HelmfileCompletionContributor extends CompletionContributor {
         if (offset > text.length()) return;
         TemplateScanner.Action action = TemplateScanner.at(text, offset);
         if (action == null) {
+            if (HelmfileRepositoryCompletion.complete(parameters, result)) return;
             List<String> context = HelmfileSchema.completionPath(file, offset);
             if (context == null) return;
             for (HelmfileSchema.Field field : HelmfileSchema.fields(context)) {
