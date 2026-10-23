@@ -7,7 +7,7 @@ plugins {
 }
 
 group = "dev.helmfile.intellij"
-version = "0.4.2"
+version = "0.5.0"
 
 repositories {
     mavenCentral()
@@ -20,6 +20,7 @@ dependencies {
         val idePath = providers.gradleProperty("localIdePath").orNull
         if (idePath != null) local(idePath) else intellijIdea("2026.1.5")
         bundledPlugin("org.jetbrains.plugins.yaml")
+        bundledModule("intellij.platform.vcs.impl")
         testFramework(TestFrameworkType.Platform)
     }
     testImplementation("junit:junit:4.13.2")

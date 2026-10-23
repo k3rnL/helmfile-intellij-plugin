@@ -72,7 +72,10 @@ public class HelmfileExecutionTest extends BasePlatformTestCase {
             HelmfileCommand command = command("quality", operation);
             assertNull(command.problem());
             GeneralCommandLine line = command.commandLine(executable.toString(), Map.of(), true);
-            assertEquals(List.of("--file", state.toString(), "--environment", "quality", "--selector", "name=api", "--interactive=false", operation.command()), line.getParametersList().getList());
+            var expected = new ArrayList<>(List.of("--file", state.toString(), "--environment", "quality", "--selector", "name=api", "--interactive=false"));
+            if (operation == HelmfileOperation.DIFF) expected.addAll(List.of("--no-color", "diff", "--context", "-1", "--output", "diff", "--detailed-exitcode", "--concurrency", "1"));
+            else expected.add(operation.command());
+            assertEquals(expected, line.getParametersList().getList());
             assertEquals(directory.toFile(), line.getWorkDirectory());
             assertEquals(GeneralCommandLine.ParentEnvironmentType.CONSOLE, line.getParentEnvironmentType());
         }
@@ -115,18 +118,18 @@ public class HelmfileExecutionTest extends BasePlatformTestCase {
         for (HelmfileOperation operation : HelmfileOperation.values()) {
             assertThrows(ProcessCanceledException.class, () -> HelmfileExecution.start(getProject(), command("production", operation), Map.of(), true));
         }
-        assertEquals(4, confirmations.get());
+        assertEquals(HelmfileOperation.values().length, confirmations.get());
     }
     public void testConfirmedProtectedActionsStartTheChosenCommandAndAlwaysConfirmAgain() throws Exception {
         AtomicInteger confirmations = new AtomicInteger();
         TestDialogManager.setTestDialog(message -> { confirmations.incrementAndGet(); return Messages.YES; }, getTestRootDisposable());
         for (HelmfileOperation operation : HelmfileOperation.values()) {
             ProcessOutput output = finish(HelmfileExecution.start(getProject(), command("prod-eu", operation), Map.of(), true));
-            assertTrue(output.getStdout(), output.getStdout().endsWith("arg=" + operation.command() + "\n"));
+            assertTrue(output.getStdout(), output.getStdout().contains("arg=" + operation.command() + "\n"));
             assertEquals(0, output.getExitCode());
         }
         finish(HelmfileExecution.start(getProject(), command("prod-eu", HelmfileOperation.TEMPLATE), Map.of(), true));
-        assertEquals(5, confirmations.get());
+        assertEquals(HelmfileOperation.values().length + 1, confirmations.get());
     }
     public void testInvalidProtectionPatternBlocksEveryOperationBeforeAnyProcessStarts() {
         HelmfileSettings.get(getProject()).configure(executable.toString(), "[invalid");
@@ -205,9 +208,10 @@ public class HelmfileExecutionTest extends BasePlatformTestCase {
             if (info != null) markers.add(info);
             return true;
         });
-        assertSize(2, markers);
-        assertEquals(List.of("Template Release…", "Apply Release…", "Delete Release…", "Destroy Release…"),
-                Arrays.stream(markers.getFirst().actions).map(action -> action.getTemplatePresentation().getText()).toList());
+        assertSize(3, markers);
+        var releaseMarker = markers.stream().filter(marker -> marker.actions.length > 1).findFirst().orElseThrow();
+        assertEquals(List.of("Template Release…", "Diff Release…", "Apply Release…", "Delete Release…", "Destroy Release…"),
+                Arrays.stream(releaseMarker.actions).map(action -> action.getTemplatePresentation().getText()).toList());
         YAMLKeyValue api = HelmfileReleaseTarget.at(file, file.getText().indexOf("nginx"));
         assertNotNull(api);
         assertEquals("api", HelmfileReleaseTarget.literal(api));

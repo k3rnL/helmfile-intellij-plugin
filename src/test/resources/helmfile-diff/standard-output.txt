@@ -1,0 +1,46 @@
+Comparing release=api, chart=chart, namespace=staging
+staging, api, Deployment (apps) has changed:
+  # Source: service/templates/deployment.yaml
+  apiVersion: apps/v1
+  kind: Deployment
+  metadata:
+    name: api
+    namespace: staging
+  spec:
+-   replicas: 1
++   replicas: 3
+    selector:
+      matchLabels:
+        app: api
+    template:
+      metadata:
+        labels:
+          app: api
+      spec:
+        containers:
+          - name: web
+            image: nginx:stable
+
+Comparing release=worker, chart=chart, namespace=staging
+staging, worker, Deployment (apps) has changed:
+  # Source: service/templates/deployment.yaml
+  apiVersion: apps/v1
+  kind: Deployment
+  metadata:
+    name: worker
+    namespace: staging
+  spec:
+-   replicas: 1
++   replicas: 5
+    selector:
+      matchLabels:
+        app: worker
+    template:
+      metadata:
+        labels:
+          app: worker
+      spec:
+        containers:
+          - name: web
+            image: nginx:stable
+

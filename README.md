@@ -4,12 +4,12 @@
 
 An IntelliJ Platform plugin for editing Helmfile state files and templated values files together,
 and running Helmfile commands for individual releases.
-Targets IntelliJ IDEA 2026.1 (build 261+) with the YAML plugin enabled. Java 21 is required to build it.
+Targets IntelliJ IDEA 2026.1 (build 261+) with YAML and Version Control support enabled. Java 21 is required to build it.
 
 ## Install
 
 Build with `./gradlew buildPlugin`, then open **Settings → Plugins → ⚙ → Install Plugin from Disk**,
-select `build/distributions/helmfile-intellij-plugin-0.4.2.zip`, and restart the IDE if prompted.
+select `build/distributions/helmfile-intellij-plugin-0.5.0.zip`, and restart the IDE if prompted.
 The first build downloads the IntelliJ SDK and Gradle dependencies.
 
 The plugin recognizes `helmfile.yaml`, `helmfile.yml`, `*.gotmpl`, and `_*.tpl` helper files as
@@ -38,6 +38,8 @@ If another installed plugin already owns a filename, select Helmfile Template in
 | Inspect a resolved value | Use **Quick Documentation** on a values path to see its value, source file, and selected environment. |
 | Select an environment | **Tools → Helmfile: Select Environment**, also available through **Find Action**. |
 | Run a release | Click the run icon beside its `name`, or right-click inside the release and choose **Helmfile → Template / Apply / Delete / Destroy Release…**. |
+| Diff a release | Click its run icon and choose **Diff Release…** to compare deployed and desired YAML in IntelliJ's diff viewer. |
+| Diff the whole Helmfile | Click the run icon beside `releases:`, or use **Tools → Helmfile: Diff All Releases…**. Also available in the editor's Helmfile context menu and Find Action. |
 | Customize syntax colors | **Settings → Editor → Color Scheme → Helmfile**. |
 
 Shortcuts above use the default Windows/Linux keymap; macOS and custom keymaps differ.
@@ -173,7 +175,7 @@ Glob discovery is bounded to 5,000 entries and base traversal to 40 levels.
 Install `helmfile`, `helm`, and any Helm plugins your state requires, then configure the executable
 in **Settings → Tools → Helmfile**. The default executable is `helmfile` from the IDE's PATH.
 
-1. Click the run icon beside a release name and choose **Template**, **Apply**, **Delete**, or **Destroy**.
+1. Click the run icon beside a release name and choose **Template**, **Diff**, **Apply**, **Delete**, or **Destroy**.
 2. Choose the environment in the standard IDE dialog. The list includes environments declared in
    the state and its bases; you can also type a name. The editor's selected environment is the initial choice.
 3. Check the release name, optional namespace selector, and command preview, then click **Run**.
@@ -193,6 +195,35 @@ overriding the release namespace. Use it when the same name occurs in multiple n
 Helmfile's normal selector and nested-state rules apply. Arguments are passed directly to the executable.
 Helmfile's CLI interactive prompt is disabled because the IDE handles environment confirmation.
 **Delete** runs Helmfile's deprecated `delete` command; **Destroy** runs `destroy` (uninstall and purge).
+
+### Review a Helmfile diff
+
+**Diff Release…** compares one release. **Helmfile: Diff All Releases…**, including the gutter
+beside `releases:`, compares the entire state with its nested Helmfiles. Both actions let you choose
+the environment and create a normal Helmfile run configuration. For a saved **Diff** configuration,
+an empty release name means all releases; other commands still require an exact release name.
+Protected environments require the same extra confirmation on every run and rerun.
+
+Install the [helm-diff plugin](https://github.com/databus23/helm-diff) alongside Helmfile and Helm.
+Output and errors appear in IntelliJ's **Run** window; **Stop** cancels the process and **Rerun**
+refreshes the comparison. Successful runs open the IDE's native diff viewer:
+
+- **All changes.yaml** presents the combined comparison, with deployed YAML on the left and
+  desired YAML on the right.
+- The native file chooser and next/previous file actions let you review individual resources,
+  grouped by release and namespace as `Kind/name.yaml`, with added/modified/deleted statuses. Chart `# Source:` comments
+  remain in the YAML where present. Use the standard toolbar to switch between side-by-side and
+  unified views or adjust whitespace and context display.
+- The comparison is read-only. Helmfile's usual Secret redaction is retained, and suppressed
+  resources are identified. If configured suppression removes context, partial comparisons are
+  labeled and a notification points to the original Run output.
+
+The IDE requests the standard text renderer with full context and runs release comparisons
+sequentially to keep their output separate. An external `HELM_DIFF_TOOL` is disabled for this
+action so the native viewer can read the output. Detailed exit code `2` means changes were found
+and is shown as a successful run. An empty diff reports no changes; failures and unrecognized or
+oversized output produce a notification instead of a clean comparison. Captured output is limited
+to 32 MiB; larger results remain available in the Run console and can be narrowed to one release.
 
 ### Protect environments
 
@@ -248,7 +279,7 @@ To publish an update:
 
 1. Change `version` in `build.gradle.kts`, commit, and push the changes to `main`.
 2. Create a [GitHub release](https://github.com/k3rnL/helmfile-intellij-plugin/releases/new) with
-   the matching tag, for example `v0.4.2` for version `0.4.2`, and publish it.
+   the matching tag, for example `v0.5.0` for version `0.5.0`, and publish it.
 3. The release workflow checks that the tag matches the plugin version, runs all CI checks, and
    uploads the built plugin to Marketplace. A failed check stops publication. Marketplace approval
    is still handled by JetBrains.

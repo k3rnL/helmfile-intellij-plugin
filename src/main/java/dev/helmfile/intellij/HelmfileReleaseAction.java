@@ -13,7 +13,7 @@ import com.intellij.psi.*;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.yaml.psi.YAMLKeyValue;
 
-public class HelmfileReleaseAction extends AnAction {
+public class HelmfileReleaseAction extends AnAction implements com.intellij.openapi.project.DumbAware {
     private final HelmfileOperation operation;
     private final SmartPsiElementPointer<YAMLKeyValue> pointer;
     HelmfileReleaseAction(HelmfileOperation operation, YAMLKeyValue declaration) {
@@ -38,10 +38,13 @@ public class HelmfileReleaseAction extends AnAction {
         HelmfileReleaseDialog dialog = new HelmfileReleaseDialog(name, operation);
         if (!dialog.showAndGet()) return;
         HelmfileCommand command = dialog.command();
+        run(project, command);
+    }
+    static void run(Project project, HelmfileCommand command) {
         // Use the standard run manager, so the configuration can be edited, saved, and rerun.
         RunManager manager = RunManager.getInstance(project);
         var type = ConfigurationTypeUtil.findConfigurationType(HelmfileRunConfigurationType.class);
-        var settings = manager.createConfiguration("Helmfile " + operation.command() + " " + command.release() + " [" + command.environment() + "]", type.getConfigurationFactories()[0]);
+        var settings = manager.createConfiguration("Helmfile " + command.operation().command() + " " + (command.wholeState() ? "all releases" : command.release()) + " [" + command.environment() + "]", type.getConfigurationFactories()[0]);
         HelmfileRunConfiguration configuration = (HelmfileRunConfiguration) settings.getConfiguration();
         configuration.stateFile = command.file();
         configuration.release = command.release();
@@ -55,6 +58,7 @@ public class HelmfileReleaseAction extends AnAction {
         catch (ExecutionException error) { Messages.showErrorDialog(project, error.getMessage(), "Cannot Run Helmfile"); }
     }
     public static final class Template extends HelmfileReleaseAction { public Template() { super(HelmfileOperation.TEMPLATE, null); } }
+    public static final class Diff extends HelmfileReleaseAction { public Diff() { super(HelmfileOperation.DIFF, null); } }
     public static final class Apply extends HelmfileReleaseAction { public Apply() { super(HelmfileOperation.APPLY, null); } }
     public static final class Delete extends HelmfileReleaseAction { public Delete() { super(HelmfileOperation.DELETE, null); } }
     public static final class Destroy extends HelmfileReleaseAction { public Destroy() { super(HelmfileOperation.DESTROY, null); } }

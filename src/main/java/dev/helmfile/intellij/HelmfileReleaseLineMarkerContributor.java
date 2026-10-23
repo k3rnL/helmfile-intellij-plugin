@@ -13,6 +13,11 @@ public final class HelmfileReleaseLineMarkerContributor extends RunLineMarkerCon
     @Override public Info getInfo(@NotNull PsiElement element) {
         if (element.getFirstChild() != null) return null;
         YAMLKeyValue name = PsiTreeUtil.getParentOfType(element, YAMLKeyValue.class);
+        if (name != null && name.getKeyText().equals("releases") && HelmfileSchema.ancestors(name).isEmpty()
+                && HelmfileValues.supported(name.getContainingFile()) && name.getKey() != null
+                && PsiTreeUtil.getDeepestFirst(name.getKey()) == element) {
+            return new Info(AllIcons.RunConfigurations.TestState.Run, new AnAction[]{new HelmfileDiffAction()}, ignored -> "Diff all Helmfile releases");
+        }
         // Template-only names may have no YAML value; the key is always a stable leaf anchor.
         if (name == null || !HelmfileReleaseTarget.isRelease(name) || name.getKey() == null
                 || PsiTreeUtil.getDeepestFirst(name.getKey()) != element) return null;

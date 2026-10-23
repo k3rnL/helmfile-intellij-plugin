@@ -9,15 +9,18 @@
       Run template, apply, delete, and destroy for individual releases with environment protection.
       Complete repository aliases, chart names, and versions, with repository validation and navigation.
       Browse downloaded chart sources as read-only folders under External Libraries.
+      Review helmfile diff for a release or the full state in IntelliJ's native YAML diff viewer.
     ]]></description>
     <depends>com.intellij.modules.platform</depends>
     <depends>org.jetbrains.plugins.yaml</depends>
+    <depends>com.intellij.modules.vcs</depends>
     <extensions defaultExtensionNs="com.intellij">
         <projectConfigurable parentId="tools" id="dev.helmfile.settings" displayName="Helmfile"
                              instance="dev.helmfile.intellij.HelmfileConfigurable"/>
         <configurationType implementation="dev.helmfile.intellij.HelmfileRunConfigurationType"/>
         <additionalLibraryRootsProvider implementation="dev.helmfile.intellij.HelmfileChartLibraryProvider"/>
         <notificationGroup id="Helmfile repositories" displayType="BALLOON"/>
+        <notificationGroup id="Helmfile diff" displayType="BALLOON"/>
         <runLineMarkerContributor language="yaml" implementationClass="dev.helmfile.intellij.HelmfileReleaseLineMarkerContributor"/>
         <fileType name="Helmfile Template" language="Helmfile" implementationClass="dev.helmfile.intellij.HelmfileFileType"
                   fieldName="INSTANCE" fileNames="helmfile.yaml;helmfile.yml" extensions="gotmpl" patterns="_*.tpl"/>
@@ -44,12 +47,19 @@
         </intentionAction>
     </extensions>
     <actions>
+        <action id="Helmfile.Diff" class="dev.helmfile.intellij.HelmfileDiffAction" text="Helmfile: Diff All Releases…"
+                description="Compare deployed and desired manifests for the whole Helmfile in the IDE diff viewer">
+            <add-to-group group-id="ToolsMenu" anchor="last"/>
+        </action>
         <group id="Helmfile.ReleaseActions" text="Helmfile" popup="true">
             <add-to-group group-id="EditorPopupMenu" anchor="last"/>
             <action id="Helmfile.Release.Template" class="dev.helmfile.intellij.HelmfileReleaseAction$Template" text="Template Release…"/>
+            <action id="Helmfile.Release.Diff" class="dev.helmfile.intellij.HelmfileReleaseAction$Diff" text="Diff Release…"/>
             <action id="Helmfile.Release.Apply" class="dev.helmfile.intellij.HelmfileReleaseAction$Apply" text="Apply Release…"/>
             <action id="Helmfile.Release.Delete" class="dev.helmfile.intellij.HelmfileReleaseAction$Delete" text="Delete Release…"/>
             <action id="Helmfile.Release.Destroy" class="dev.helmfile.intellij.HelmfileReleaseAction$Destroy" text="Destroy Release…"/>
+            <separator/>
+            <reference ref="Helmfile.Diff"/>
         </group>
         <action id="Helmfile.SelectEnvironment" class="dev.helmfile.intellij.SelectEnvironmentAction"
                 text="Helmfile: Select Environment" description="Select the Helmfile environment used for values completion and navigation">

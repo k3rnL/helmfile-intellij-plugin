@@ -2,6 +2,7 @@ package dev.helmfile.intellij;
 
 enum HelmfileOperation {
     TEMPLATE("Template", "Render the release manifests"),
+    DIFF("Diff", "Compare deployed and desired manifests in the IDE diff viewer"),
     APPLY("Apply", "Apply changes to the release"),
     DELETE("Delete", "Delete the release (Helmfile's deprecated delete command)"),
     DESTROY("Destroy", "Uninstall and purge the release");

@@ -30,7 +30,7 @@ final class HelmfileExecution {
             Runnable ask = () -> {
                 if (project.isDisposed()) return;
                 String message = "Environment '" + command.environment() + "' is protected by '" + regex + "'.\n\n"
-                        + "Action: " + command.operation().label + "\nRelease selector: " + command.selector()
+                        + "Action: " + command.operation().label + "\nScope: " + command.scope()
                         + "\nState file: " + command.file() + "\n\nRun this action?";
                 confirmed.set(Messages.showDialog(project, message, "Protected Helmfile Environment",
                         new String[]{"Run " + command.operation().label, "Cancel"}, 1, Messages.getWarningIcon()) == 0);
@@ -41,7 +41,23 @@ final class HelmfileExecution {
             if (!confirmed.get()) throw new com.intellij.openapi.progress.ProcessCanceledException();
         }
         if (project.isDisposed()) throw new com.intellij.openapi.progress.ProcessCanceledException();
-        KillableColoredProcessHandler handler = new KillableColoredProcessHandler(line);
+        HelmfileDiffRun diff = command.operation() == HelmfileOperation.DIFF ? new HelmfileDiffRun(project, command) : null;
+        KillableColoredProcessHandler handler = new KillableColoredProcessHandler(line) {
+            @Override protected void destroyProcessImpl() {
+                if (diff != null) diff.cancel();
+                super.destroyProcessImpl();
+            }
+            @Override protected void detachProcessImpl() {
+                if (diff != null) diff.cancel();
+                super.detachProcessImpl();
+            }
+            @Override protected void notifyProcessTerminated(int exitCode) {
+                // With --detailed-exitcode, 2 means a successful diff which found changes.
+                if (command.operation() == HelmfileOperation.DIFF) putUserData(HelmfileDiffRun.EXIT_CODE, exitCode);
+                super.notifyProcessTerminated(command.operation() == HelmfileOperation.DIFF && exitCode == 2 ? 0 : exitCode);
+            }
+        };
+        if (diff != null) handler.addProcessListener(diff);
         ProcessTerminatedListener.attach(handler, project);
         return handler;
     }
