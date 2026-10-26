@@ -9,7 +9,7 @@ Targets IntelliJ IDEA 2026.1 (build 261+) with YAML and Version Control support 
 ## Install
 
 Build with `./gradlew buildPlugin`, then open **Settings → Plugins → ⚙ → Install Plugin from Disk**,
-select `build/distributions/helmfile-intellij-plugin-0.5.0.zip`, and restart the IDE if prompted.
+select `build/distributions/helmfile-intellij-plugin-0.5.1.zip`, and restart the IDE if prompted.
 The first build downloads the IntelliJ SDK and Gradle dependencies.
 
 The plugin recognizes `helmfile.yaml`, `helmfile.yml`, `*.gotmpl`, and `_*.tpl` helper files as

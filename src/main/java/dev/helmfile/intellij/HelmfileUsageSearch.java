@@ -6,12 +6,14 @@ import com.intellij.psi.*;
 import com.intellij.psi.search.*;
 import com.intellij.psi.util.PsiTreeUtil;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import org.jetbrains.yaml.psi.*;
 
 /** Use the word index for candidates, then inspect only references owned by this plugin. */
 final class HelmfileUsageSearch {
     static List<PsiReference> find(YAMLKeyValue declaration, SearchScope scope) {
-        Map<String, PsiReference> references = new LinkedHashMap<>();
+        // Word-search callbacks run concurrently, including during automatic usage highlighting.
+        Map<String, PsiReference> references = new ConcurrentHashMap<>();
         boolean templateDeclaration = HelmfileTemplates.isDeclaration(declaration);
         PsiSearchHelper.getInstance(declaration.getProject()).processElementsWithWord((element, offsetInElement) -> {
             ProgressManager.checkCanceled();
