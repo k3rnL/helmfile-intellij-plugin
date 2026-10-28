@@ -156,6 +156,18 @@ public class HelmfileRepositoryInsightTest extends BasePlatformTestCase {
         configure("releases:\n  - name: app\n    chart: example/api\n    version: 99.0.0\n");
         assertEmpty(problems());
     }
+    public void testCompactFlowSequenceVersionDoesNotCrashInspection() {
+        for (String body : List.of("releases: [version: 9.0.0]\n",
+                "releases:\n  - name: app\n    dependencies: [version: 9.0.0]\n",
+                "templates:\n  common:\n    dependencies: [version: 9.0.0]\n")) {
+            PsiFile file = configure(body);
+            YAMLKeyValue version = PsiTreeUtil.findChildrenOfType(HelmfileValues.yaml(file), YAMLKeyValue.class).stream()
+                    .filter(key -> key.getKeyText().equals("version")).findFirst().orElseThrow();
+            assertNull(version.getParentMapping());
+            assertTrue(HelmfileRepositories.isChartField(version, "version"));
+            assertEmpty(problems());
+        }
+    }
     public void testMissingBaseDoesNotMisdiagnoseItsRepositoryAliases() {
         configure("bases: [missing.yaml]\nreleases:\n  - name: app\n    chart: from-base/api\n");
         assertEmpty(problems());

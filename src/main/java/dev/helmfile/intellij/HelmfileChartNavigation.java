@@ -15,6 +15,7 @@ import java.util.*;
 import java.util.regex.Pattern;
 import javax.swing.Icon;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 import org.jetbrains.yaml.psi.*;
 
 final class HelmfileChartNavigation {
@@ -64,8 +65,8 @@ final class HelmfileChartNavigation {
     }
     private static final Pattern ENVIRONMENT_VALUE = Pattern.compile("\\.(?:StateValues|Values|Environment\\.Values)\\.");
     private static final Pattern PIPELINE = Pattern.compile("\\{\\{-?\\s*(\\$?\\.(?:Values|StateValues|Environment\\.Values)\\.[A-Za-z0-9_.]+)(?:\\s*\\|\\s*default\\s+(\"[^\"]*\"|`[^`]*`|[A-Za-z0-9._+-]+))?(?:\\s*\\|\\s*quote)?\\s*-?}}");
-    static String option(YAMLMapping mapping, String name, Set<YAMLMapping> visiting) {
-        if (!visiting.add(mapping) || visiting.size() > 40) return "";
+    static String option(@Nullable YAMLMapping mapping, String name, Set<YAMLMapping> visiting) {
+        if (mapping == null || !visiting.add(mapping) || visiting.size() > 40) return "";
         if (mapping.getKeyValueByKey(name) != null) {
             PsiFile file = mapping.getContainingFile();
             String value = HelmfileRepositories.value(mapping, name);
@@ -83,7 +84,8 @@ final class HelmfileChartNavigation {
         if (inherit != null) for (YAMLScalar scalar : PsiTreeUtil.findChildrenOfType(inherit, YAMLScalar.class)) {
             if (!HelmfileTemplates.isInheritance(scalar)) continue;
             YAMLKeyValue inheritance = PsiTreeUtil.getParentOfType(scalar, YAMLKeyValue.class);
-            YAMLKeyValue except = inheritance.getParentMapping().getKeyValueByKey("except");
+            YAMLMapping inheritanceMapping = inheritance == null ? null : inheritance.getParentMapping();
+            YAMLKeyValue except = inheritanceMapping == null ? null : inheritanceMapping.getKeyValueByKey("except");
             if (except != null && except.getValue() instanceof YAMLSequence sequence && sequence.getItems().stream()
                     .anyMatch(item -> item.getValue() instanceof YAMLScalar excluded && excluded.getTextValue().equals(name))) continue;
             YAMLKeyValue parent = HelmfileTemplates.declarations(mapping.getContainingFile()).get(scalar.getTextValue());

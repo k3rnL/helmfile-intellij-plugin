@@ -9,7 +9,7 @@ Targets IntelliJ IDEA 2026.1 (build 261+) with YAML and Version Control support 
 ## Install
 
 Build with `./gradlew buildPlugin`, then open **Settings → Plugins → ⚙ → Install Plugin from Disk**,
-select `build/distributions/helmfile-intellij-plugin-0.5.1.zip`, and restart the IDE if prompted.
+select `build/distributions/helmfile-intellij-plugin-0.5.2.zip`, and restart the IDE if prompted.
 The first build downloads the IntelliJ SDK and Gradle dependencies.
 
 The plugin recognizes `helmfile.yaml`, `helmfile.yml`, `*.gotmpl`, and `_*.tpl` helper files as
@@ -241,6 +241,14 @@ Commands typed in a terminal or launched by other tools use those tools' own beh
 
 Semantics and function references: [Helmfile](https://helmfile.readthedocs.io/en/stable/),
 [Go text/template](https://pkg.go.dev/text/template), [Sprig](https://masterminds.github.io/sprig/).
+
+## Report plugin errors
+
+The plugin uses [JetBrains Marketplace's built-in error handler](https://plugins.jetbrains.com/docs/marketplace/error-handler.html).
+In IntelliJ's **IDE Internal Errors** dialog, review the report details and consent to sharing them,
+then choose **Report to third-party plugin**. Automatic reporting follows the IDE's
+**Send error reports to JetBrains automatically** setting.
+Reports attributed to Helmfile appear in the plugin author's Marketplace **Exceptions** and **Freezes** tabs.
 
 ## Development
 

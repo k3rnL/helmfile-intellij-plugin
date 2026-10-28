@@ -68,4 +68,15 @@ public class HelmfileReleaseGutterTest extends BasePlatformTestCase {
                 """);
         assertNull(HelmfileReleaseTarget.at(file, file.getText().indexOf(".Values")));
     }
+    public void testCompactReleaseNameOpensDialogWithStateNamespace() {
+        PsiFile file = myFixture.configureByText("helmfile.yaml.gotmpl", "namespace: shared\nreleases: [name: web]\n");
+        var name = com.intellij.psi.util.PsiTreeUtil.findChildrenOfType(HelmfileValues.yaml(file), org.jetbrains.yaml.psi.YAMLKeyValue.class).stream()
+                .filter(key -> key.getKeyText().equals("name")).findFirst().orElseThrow();
+        assertNull(name.getParentMapping());
+        HelmfileReleaseDialog dialog = new HelmfileReleaseDialog(name, HelmfileOperation.TEMPLATE);
+        try {
+            assertEquals("web", dialog.command().release());
+            assertEquals("shared", dialog.command().namespace());
+        } finally { Disposer.dispose(dialog.getDisposable()); }
+    }
 }

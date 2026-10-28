@@ -9,6 +9,7 @@ import com.intellij.psi.util.*;
 import java.util.*;
 import java.util.regex.Pattern;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 import org.jetbrains.yaml.psi.*;
 
 /** Repository declarations and immutable download settings, resolved without executing templates. */
@@ -50,7 +51,8 @@ final class HelmfileRepositories {
         String context = HelmfileSchema.context(HelmfileSchema.ancestors(key));
         return context.equals("releases") || context.equals("dependencies");
     }
-    static String value(YAMLMapping mapping, String key) {
+    static String value(@Nullable YAMLMapping mapping, String key) {
+        if (mapping == null) return "";
         YAMLKeyValue entry = mapping.getKeyValueByKey(key);
         if (entry == null) return "";
         if (entry.getValue() instanceof YAMLScalar scalar) return HelmfileValues.pathText(scalar);
@@ -75,8 +77,9 @@ final class HelmfileRepositories {
             return java.util.regex.Matcher.quoteReplacement(result == null ? match.group() : result);
         });
     }
-    static String chart(YAMLMapping mapping, Set<YAMLMapping> visiting) {
-        if (!visiting.add(mapping) || visiting.size() > 40) return "";
+    static String chart(@Nullable YAMLMapping mapping, Set<YAMLMapping> visiting) {
+        // Compact YAML sequence entries and incomplete editor PSI may have no mapping.
+        if (mapping == null || !visiting.add(mapping) || visiting.size() > 40) return "";
         String chart = value(mapping, "chart");
         if (!chart.isEmpty()) return resolved(mapping.getContainingFile(), chart);
         YAMLKeyValue inherit = mapping.getKeyValueByKey("inherit");

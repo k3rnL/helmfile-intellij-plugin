@@ -130,6 +130,42 @@ public class HelmfileChartNavigationTest extends BasePlatformTestCase {
         file = myFixture.configureByText("helmfile.yaml.gotmpl", file.getText().replace("- template: common", "- template: common\n        except: [version]"));
         assertEquals("", HelmfileChartNavigation.request(chart(file)).version());
     }
+    public void testCompactChartEntryCanNavigateWithoutAParentMapping() {
+        PsiFile file = myFixture.configureByText("helmfile.yaml.gotmpl", """
+                repositories:
+                  - name: example
+                    url: https://repo.invalid
+                releases: [chart: example/sample]
+                """);
+        YAMLScalar scalar = chart(file);
+        var key = PsiTreeUtil.getParentOfType(scalar, org.jetbrains.yaml.psi.YAMLKeyValue.class);
+        assertNotNull(key);
+        assertNull(key.getParentMapping());
+        var request = HelmfileChartNavigation.request(scalar);
+        assertEquals("example/sample", request.chart());
+        assertEquals("", request.version());
+        assertInstanceOf(HelmfileChartNavigation.reference(scalar).resolve(), PomTargetPsiElement.class);
+        assertFalse("Resolving a reference must not download a chart", Files.exists(directory.resolve("calls")));
+    }
+    public void testCompactTemplateInheritanceResolvesVersionAndVerification() {
+        PsiFile file = myFixture.configureByText("helmfile.yaml.gotmpl", """
+                repositories:
+                  - name: example
+                    url: https://repo.invalid
+                templates:
+                  common:
+                    version: ~1.2
+                    verify: true
+                releases:
+                  - name: app
+                    inherit: [template: common]
+                    chart: example/sample
+                """);
+        var request = HelmfileChartNavigation.request(chart(file));
+        assertEquals("~1.2", request.version());
+        assertTrue(request.verify());
+        assertFalse(Files.exists(directory.resolve("calls")));
+    }
     public void testUnresolvedVersionDoesNotSilentlyOpenLatestChart() {
         PsiFile file = configure("chart: bigdata-helm-charts/sample\n    version: {{ requiredEnv \"CHART_VERSION\" }}");
         var request = HelmfileChartNavigation.request(chart(file));

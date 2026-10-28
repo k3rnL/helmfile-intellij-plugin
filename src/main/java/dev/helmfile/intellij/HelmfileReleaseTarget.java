@@ -47,7 +47,8 @@ final class HelmfileReleaseTarget {
     }
     static String namespace(YAMLKeyValue name) {
         if (name == null) return "";
-        YAMLKeyValue namespace = name.getParentMapping().getKeyValueByKey("namespace");
+        YAMLMapping release = name.getParentMapping();
+        YAMLKeyValue namespace = release == null ? null : release.getKeyValueByKey("namespace");
         if (namespace != null) return literal(namespace);
         YAMLDocument document = PsiTreeUtil.getParentOfType(name, YAMLDocument.class);
         if (document != null && document.getTopLevelValue() instanceof YAMLMapping mapping) return literal(mapping.getKeyValueByKey("namespace"));
