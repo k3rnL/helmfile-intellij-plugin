@@ -4,10 +4,11 @@
     <vendor>Helmfile Plugin Contributors</vendor>
     <description><![CDATA[
       Helmfile YAML and Go template editing: contextual completion, state values navigation,
-      environment selection, bidirectional values navigation, Find Usages, template inheritance
+      environment selection from gutter buttons, bidirectional values navigation, Find Usages, template inheritance
       gutter navigation, and configurable colors and documentation for Go, Sprig, and Helmfile functions.
       Run template, apply, delete, and destroy for individual releases with environment protection.
       Complete repository aliases, chart names, and versions, with repository validation and navigation.
+      Open values files from resolved state-value paths and find chart usages from repository declarations.
       Browse downloaded chart sources as read-only folders under External Libraries.
       Review helmfile diff for a release or the full state in IntelliJ's native YAML diff viewer.
     ]]></description>
@@ -38,6 +39,7 @@
         <findUsagesHandlerFactory implementation="dev.helmfile.intellij.HelmfileFindUsagesHandlerFactory" order="first"/>
         <gotoDeclarationHandler implementation="dev.helmfile.intellij.HelmfileGotoDeclarationHandler" order="first"/>
         <codeInsight.lineMarkerProvider language="yaml" implementationClass="dev.helmfile.intellij.HelmfileInheritanceLineMarkerProvider"/>
+        <codeInsight.lineMarkerProvider language="yaml" implementationClass="dev.helmfile.intellij.HelmfileEnvironmentLineMarkerProvider"/>
         <annotator language="Helmfile" implementationClass="dev.helmfile.intellij.HelmfileAnnotator"/>
         <localInspection language="yaml" shortName="HelmfileRepositories" displayName="Helmfile chart repositories"
                          groupName="Helmfile" enabledByDefault="true" level="WARNING"

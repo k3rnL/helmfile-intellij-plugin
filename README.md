@@ -29,7 +29,7 @@ using **Settings → Plugins → ⚙ → Install Plugin from Disk**.
 | Read function documentation | **Ctrl+Q** shows Go, Sprig, and Helmfile function help, including signatures and examples. |
 | Browse chart sources | **Ctrl+Click** a chart name to open `Chart.yaml`, then browse its folder under **External Libraries**. |
 | Find repository usages | **Ctrl+Click** a repository's declared name to see the charts that use it. |
-| Switch environments | Use **Tools → Helmfile: Select Environment** to resolve the corresponding values and versions. |
+| Switch environments | Click the gutter button beside an environment, or use **Tools → Helmfile: Select Environment**. The current environment has a check mark. |
 | Run a release | Click the play icon beside its name for **Template**, **Diff**, **Apply**, **Delete**, or **Destroy**. |
 | Review deployment changes | Diff one release or the whole Helmfile in the IDE's diff viewer, including individual resources. |
 

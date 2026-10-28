@@ -26,7 +26,7 @@ association under **Settings → Editor → File Types**.
 | Open a referenced file | **Ctrl+Click / Ctrl+B** on a values file, base file, nested state path, or `readFile` argument. |
 | Read function documentation | Use **Quick Documentation (Ctrl+Q)**, or **Alt+Enter → Show Go template function documentation**. |
 | Inspect a resolved value | Use **Quick Documentation** on a values path to see its value, source file, and selected environment. |
-| Select an environment | **Tools → Helmfile: Select Environment**, also available through **Find Action**. |
+| Select an environment | Click its gutter button under `environments`, or use **Tools → Helmfile: Select Environment** through the menu or **Find Action**. |
 | Run a release | Click the run icon beside its `name`, or right-click inside the release and choose **Helmfile → Template / Apply / Delete / Destroy Release…**. |
 | Diff a release | Click its run icon and choose **Diff Release…** to compare deployed and desired YAML in IntelliJ's diff viewer. |
 | Diff the whole Helmfile | Click the run icon beside `releases:`, or use **Tools → Helmfile: Diff All Releases…**. Also available in the editor's Helmfile context menu and Find Action. |
@@ -133,6 +133,13 @@ is explicitly marked as truncated, preserving its first and last sections. Cance
 ## Values resolution
 
 The initial environment is `default`; the selected environment is saved per project.
+Each environment declaration has a gutter button that switches directly to that environment.
+A check mark identifies the current environment. Buttons also appear in included YAML bases and
+work while the IDE is indexing. Switching immediately refreshes completion, value navigation,
+values-file paths, and chart-version resolution. It does not run Helmfile; saved run configurations
+retain their own execution environment. Gutter buttons can be hidden under
+**Settings → Editor → General → Gutter Icons → Helmfile environment selection**.
+
 Completion and navigation read root `values`, recursively included `bases`, and the selected
 environment's `values`. Defaults are collected before environment overrides, and later files
 override earlier definitions. Maps merge recursively; scalars and lists replace earlier values.

@@ -31,7 +31,7 @@ final class HelmfileValues {
         }
     }
     record Model(PsiFile state, Map<String, Definition> definitions, List<Definition> completionDefinitions,
-                 Set<String> environments, List<String> skipped) {}
+                 Set<String> environments, List<String> skipped, Set<PsiFile> stateSources) {}
     private static final Key<CachedValue<Model>> MODEL = Key.create("helmfile.values.model");
     private static final Key<CachedValue<List<Definition>>> ALL_DEFINITIONS = Key.create("helmfile.values.all.environments");
     private static final List<String> STATE_NAMES = List.of("helmfile.yaml.gotmpl", "helmfile.yml.gotmpl", "helmfile.yaml", "helmfile.yml");
@@ -53,6 +53,12 @@ final class HelmfileValues {
             return CachedValueProvider.Result.create(builder.build(), PsiModificationTracker.MODIFICATION_COUNT,
                     VirtualFileManager.VFS_STRUCTURE_MODIFICATIONS, HelmfileSettings.get(original.getProject()));
         }, false);
+    }
+    static boolean isStateSource(PsiFile file) {
+        if (supported(file)) return true;
+        PsiFile state = stateFor(file);
+        return supported(state) && model(state).stateSources().stream()
+                .anyMatch(source -> source.getManager().areElementsEquivalent(source, original(file)));
     }
     /** Reverse lookup follows the declaration's environment, independently of the editor selection. */
     static List<Definition> allDefinitions(PsiFile file) {
@@ -130,6 +136,7 @@ final class HelmfileValues {
         private final Set<String> environments = new TreeSet<>();
         private final List<String> skipped = new ArrayList<>();
         private final Set<String> visiting = new HashSet<>();
+        private final Set<PsiFile> stateSources = new HashSet<>();
         Builder(PsiFile context, String environment) { this.context = context; this.environment = environment; }
         Model build() {
             PsiFile state = stateFor(context);
@@ -150,7 +157,7 @@ final class HelmfileValues {
             }
             Set<String> choices = new TreeSet<>(environments);
             choices.add("default");
-            return new Model(state, Collections.unmodifiableMap(values), List.copyOf(completions), Set.copyOf(choices), List.copyOf(skipped));
+            return new Model(state, Collections.unmodifiableMap(values), List.copyOf(completions), Set.copyOf(choices), List.copyOf(skipped), Set.copyOf(stateSources));
         }
         private void resolve(PsiFile state) {
             // Collect defaults across all bases first, then apply environment overrides.
@@ -163,6 +170,7 @@ final class HelmfileValues {
             String id = source.getVirtualFile() == null ? source.getName() : source.getVirtualFile().getPath();
             if (!visiting.add(id)) return;
             try {
+                stateSources.add(original(source));
                 YAMLFile yaml = yaml(source);
                 if (yaml == null) return;
                 for (YAMLMapping root : roots(yaml)) {

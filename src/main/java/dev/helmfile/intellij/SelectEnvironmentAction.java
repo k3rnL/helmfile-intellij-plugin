@@ -30,9 +30,13 @@ public final class SelectEnvironmentAction extends AnAction implements DumbAware
                 .setTitle(title + " (current: " + HelmfileSettings.get(project).environment() + ")")
                 .setItemChosenCallback(name -> {
                     if (project.isDisposed() || pointer.getElement() == null) return;
-                    HelmfileSettings.get(project).select(name);
-                    DaemonCodeAnalyzer.getInstance(project).restart(SelectEnvironmentAction.class);
+                    select(project, name);
                     selected.run();
                 }).createPopup();
+    }
+    static void select(Project project, String name) {
+        if (project.isDisposed() || name.equals(HelmfileSettings.get(project).environment())) return;
+        HelmfileSettings.get(project).select(name);
+        DaemonCodeAnalyzer.getInstance(project).restart(SelectEnvironmentAction.class);
     }
 }
