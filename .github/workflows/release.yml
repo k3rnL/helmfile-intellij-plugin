@@ -1,20 +1,67 @@
-name: Publish to JetBrains Marketplace
+name: Release
 
 on:
-  release:
-    types: [published]
+  workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
+
+concurrency:
+  group: helmfile-marketplace-release
+  cancel-in-progress: false
 
 jobs:
-  publish:
-    uses: ./.github/workflows/build.yml
-    with:
-      release_tag: ${{ github.event.release.tag_name }}
-      marketplace_channel: ${{ github.event.release.prerelease && 'eap' || 'default' }}
-    secrets:
-      PUBLISH_TOKEN: ${{ secrets.PUBLISH_TOKEN }}
-      CERTIFICATE_CHAIN: ${{ secrets.CERTIFICATE_CHAIN }}
-      PRIVATE_KEY: ${{ secrets.PRIVATE_KEY }}
-      PRIVATE_KEY_PASSWORD: ${{ secrets.PRIVATE_KEY_PASSWORD }}
+  release:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - name: Check out sources and release history
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Node
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Set up Java
+        uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
+
+      - name: Install and test release tooling
+        run: |
+          npm ci --ignore-scripts
+          npm test
+
+      - name: Check release commits
+        run: npm run lint:commits -- --from "$(git describe --tags --abbrev=0)" --to HEAD --verbose
+
+      - name: Generate, verify, and publish the next release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PUBLISH_TOKEN: ${{ secrets.PUBLISH_TOKEN }}
+          CERTIFICATE_CHAIN: ${{ secrets.CERTIFICATE_CHAIN }}
+          PRIVATE_KEY: ${{ secrets.PRIVATE_KEY }}
+          PRIVATE_KEY_PASSWORD: ${{ secrets.PRIVATE_KEY_PASSWORD }}
+        run: npm run release
+
+      - name: Save verified plugin and reports
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: release-verification
+          path: |
+            build/distributions/*.zip
+            build/reports/tests/
+            build/test-results/
+            build/reports/pluginVerifier/
+          if-no-files-found: ignore
