@@ -23,6 +23,14 @@ public final class HelmfileGotoDeclarationHandler implements GotoDeclarationHand
             PsiElement yamlElement = yaml == null ? null : yaml.findElementAt(offset);
             YAMLScalar scalar = com.intellij.psi.util.PsiTreeUtil.getParentOfType(yamlElement, YAMLScalar.class, false);
             if (scalar != null) {
+                for (PsiReference candidate : HelmfileReferences.forScalar(scalar)) {
+                    if (candidate instanceof HelmfileReferences.PathReference path
+                            && candidate.getRangeInElement().shiftRight(scalar.getTextOffset()).containsOffset(offset)) {
+                        var targets = java.util.Arrays.stream(path.multiResolve(false)).map(ResolveResult::getElement)
+                                .filter(java.util.Objects::nonNull).toArray(PsiElement[]::new);
+                        if (targets.length > 0) return targets;
+                    }
+                }
                 var repository = HelmfileRepositories.reference(scalar);
                 if (repository != null && repository.getRangeInElement().shiftRight(scalar.getTextOffset()).containsOffset(offset)) {
                     PsiElement target = repository.resolve();

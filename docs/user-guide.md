@@ -152,6 +152,14 @@ Open [examples/helmfile.yaml.gotmpl](../examples/helmfile.yaml.gotmpl) and
 For a fuller demo with local charts, environments, inheritance, chart dependencies, and a screenshot
 guide, open [examples/screenshots](../examples/screenshots/README.md).
 
+Ctrl+Click the filename in a `values` entry to open the referenced file. Navigation also resolves
+simple `.Values`, `.StateValues`, `.Environment.Values`, and `.Environment.Name` expressions using
+the selected environment, including quoted paths and reusable release templates. For example,
+`{{ .StateValues.envPath }}/values/databases/trino.yaml` opens that environment's existing file.
+Clicking the value name inside the expression still opens its declaration. Matching glob paths
+offer their files through the IDE's declaration chooser. Unresolved expressions and missing files
+do not open another file or execute template functions.
+
 This version resolves static YAML definitions. It does not render Helmfile, infer computed values,
 evaluate HCL, decrypt secrets, fetch remote values/base files, or apply CLI state overrides. Functions such as
 `exec`, `envExec`, and `fetchSecretValue` are documented but never executed by the editor.

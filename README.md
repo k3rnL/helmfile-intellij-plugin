@@ -25,6 +25,7 @@ using **Settings → Plugins → ⚙ → Install Plugin from Disk**.
 | --- | --- |
 | Complete YAML and Go templates | Press **Ctrl+Space** for Helmfile fields, state values, repositories, charts, and versions. |
 | Follow values and templates | **Ctrl+Click / Ctrl+B** goes to declarations; **Alt+F7** finds usages. Gutter arrows follow template inheritance in both directions. |
+| Open values files | **Ctrl+Click** a filename, including paths built from static state values and the selected environment. |
 | Read function documentation | **Ctrl+Q** shows Go, Sprig, and Helmfile function help, including signatures and examples. |
 | Browse chart sources | **Ctrl+Click** a chart name to open `Chart.yaml`, then browse its folder under **External Libraries**. |
 | Switch environments | Use **Tools → Helmfile: Select Environment** to resolve the corresponding values and versions. |

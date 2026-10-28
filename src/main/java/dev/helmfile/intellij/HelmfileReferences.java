@@ -93,7 +93,8 @@ final class HelmfileReferences {
         @Override public ResolveResult @NotNull [] multiResolve(boolean incompleteCode) {
             PsiFile source = myElement.getContainingFile();
             String environment = HelmfileSettings.get(source.getProject()).environment();
-            return HelmfileValues.files(source, path, environment).stream().map(f -> PsiManager.getInstance(source.getProject()).findFile(f))
+            String resolved = path.contains("{{") ? HelmfileRepositories.resolved(source, path) : path;
+            return HelmfileValues.files(source, resolved, environment).stream().map(f -> PsiManager.getInstance(source.getProject()).findFile(f))
                     .filter(Objects::nonNull).map(PsiElementResolveResult::new).toArray(ResolveResult[]::new);
         }
     }
@@ -115,6 +116,7 @@ final class HelmfileReferences {
         boolean fileEntry = parents.size() == 1 && Set.of("values", "bases", "helmfiles").contains(last)
                 || parents.size() == 3 && parents.getFirst().equals("environments") && Set.of("values", "secrets").contains(last)
                 || parents.size() == 2 && parents.getFirst().equals("releases") && Set.of("values", "secrets", "chart").contains(last)
+                || parents.size() == 3 && parents.getFirst().equals("templates") && Set.of("values", "secrets").contains(last)
                 || parents.equals(List.of("helmfiles", "path"));
         if (!fileEntry) return PsiReference.EMPTY_ARRAY;
         String raw = scalar.getText(), value = HelmfileValues.pathText(scalar);
