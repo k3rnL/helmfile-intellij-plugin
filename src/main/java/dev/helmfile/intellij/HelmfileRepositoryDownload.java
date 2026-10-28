@@ -92,7 +92,16 @@ final class HelmfileRepositoryDownload {
         return token instanceof String value ? value : null;
     }
     private static void requireSuccess(Response response) throws IOException {
-        if (response.status() != 200) throw new IOException("Repository returned HTTP " + response.status());
+        if (response.status() != 200) {
+            String meaning = switch (response.status()) {
+                case 401 -> " Unauthorized";
+                case 403 -> " Forbidden";
+                case 404 -> " Not Found";
+                case 429 -> " Too Many Requests";
+                default -> "";
+            };
+            throw new IOException("Repository returned HTTP " + response.status() + meaning);
+        }
     }
     private static Response get(URI uri, HelmfileRepositories.Access access, SSLContext ssl, String token, ProgressIndicator indicator) throws IOException {
         return get(uri, access, ssl, token, uri, indicator);

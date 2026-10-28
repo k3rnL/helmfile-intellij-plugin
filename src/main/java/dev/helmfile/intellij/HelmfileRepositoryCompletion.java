@@ -74,7 +74,7 @@ final class HelmfileRepositoryCompletion {
     }
     private static void advertise(CompletionResultSet result, HelmfileRepositoryService.Snapshot snapshot) {
         if (snapshot.loading()) result.addLookupAdvertisement("Loading repository metadata in the background; invoke completion again when ready.");
-        else if (snapshot.error() != null) result.addLookupAdvertisement(snapshot.error());
+        else if (snapshot.error() != null) result.addLookupAdvertisement(HelmfileDownloadDiagnostics.preview(snapshot.error()));
     }
     private HelmfileRepositoryCompletion() {}
 }

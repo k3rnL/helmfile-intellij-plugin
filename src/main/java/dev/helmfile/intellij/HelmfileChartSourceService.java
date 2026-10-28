@@ -2,7 +2,6 @@ package dev.helmfile.intellij;
 
 import com.intellij.execution.ExecutionException;
 import com.intellij.execution.process.CapturingProcessHandler;
-import com.intellij.notification.*;
 import com.intellij.openapi.Disposable;
 import com.intellij.openapi.application.PathManager;
 import com.intellij.openapi.application.ReadAction;
@@ -120,8 +119,9 @@ public final class HelmfileChartSourceService implements Disposable, PersistentS
     }
 
     void open(HelmfileChartNavigation.Request request) {
+        String environment = HelmfileSettings.get(project).environment();
         String problem = request.problem();
-        if (problem != null) { failure("Environment: " + HelmfileSettings.get(project).environment() + ". " + problem); return; }
+        if (problem != null) { failure(request, environment, problem); return; }
         String id = fingerprint(request);
         if (disposed || !pending.add(id)) return;
         new Task.Backgroundable(project, "Open Helm chart " + request.chart(), true) {
@@ -139,7 +139,7 @@ public final class HelmfileChartSourceService implements Disposable, PersistentS
                     chart = archiveChart(archive);
                     if (chart == null) error = "The downloaded chart did not contain Chart.yaml.";
                     else if (!disposed) library = library(id, chart);
-                } catch (IOException exception) { error = exception.getMessage(); }
+                } catch (IOException exception) { error = HelmfileDownloadDiagnostics.reason(exception, request.access()); }
                 finally { indicators.remove(indicator); pending.remove(id); }
             }
             @Override public void onSuccess() {
@@ -151,7 +151,7 @@ public final class HelmfileChartSourceService implements Disposable, PersistentS
                     if (file != null) PsiNavigateUtil.navigate(file);
                     ProjectView.getInstance(project).select(null, chart, false);
                 }
-                else if (error != null) failure(error);
+                else if (error != null) failure(request, environment, error);
             }
             @Override public void onCancel() { pending.remove(id); }
         }.queue();
@@ -173,7 +173,8 @@ public final class HelmfileChartSourceService implements Disposable, PersistentS
                 // The process caption omits authentication arguments, including in failure reports.
                 handler = new CapturingProcessHandler(request.commandLine(content).createProcess(), StandardCharsets.UTF_8, "helm pull chart sources");
             } catch (ExecutionException exception) {
-                throw new IOException("Cannot start Helm. Configure the Helm executable in Settings | Tools | Helmfile.");
+                throw new IOException("Cannot start Helm: " + HelmfileDownloadDiagnostics.reason(exception, request.access())
+                        + "\nConfigure the Helm executable in Settings | Tools | Helmfile.");
             }
             processes.add(handler);
             try {
@@ -181,9 +182,10 @@ public final class HelmfileChartSourceService implements Disposable, PersistentS
                 var output = handler.runProcessWithProgressIndicator(indicator, 120_000, true);
                 indicator.checkCanceled();
                 if (output.isCancelled()) throw new ProcessCanceledException();
-                if (output.isTimeout()) throw new IOException("The chart download timed out.");
-                if (output.getExitCode() != 0) throw new IOException("Helm could not download the chart (exit code " + output.getExitCode()
-                        + "). Check the repository credentials, version, and network connection.");
+                if (output.isTimeout()) throw new IOException(HelmfileDownloadDiagnostics.processFailure(
+                        "The chart download timed out after 120 seconds", output, request.access()));
+                if (output.getExitCode() != 0) throw new IOException(HelmfileDownloadDiagnostics.processFailure(
+                        "Helm exited with code " + output.getExitCode(), output, request.access()));
             } finally { processes.remove(handler); }
             List<Path> roots;
             try (var children = Files.list(content)) {
@@ -246,9 +248,8 @@ public final class HelmfileChartSourceService implements Disposable, PersistentS
             return HexFormat.of().formatHex(digest.digest());
         } catch (NoSuchAlgorithmException exception) { throw new IllegalStateException(exception); }
     }
-    private void failure(String message) {
-        if (!disposed && !project.isDisposed()) NotificationGroupManager.getInstance().getNotificationGroup("Helmfile repositories")
-                .createNotification("Cannot open Helm chart", FunctionCatalog.escape(message), NotificationType.WARNING).notify(project);
+    private void failure(HelmfileChartNavigation.Request request, String environment, String message) {
+        if (!disposed && !project.isDisposed()) HelmfileDownloadDiagnostics.chartFailure(project, request, environment, message);
     }
     @Override public void dispose() { disposed = true; indicators.forEach(ProgressIndicator::cancel); processes.forEach(CapturingProcessHandler::destroyProcess); pending.clear(); }
 }

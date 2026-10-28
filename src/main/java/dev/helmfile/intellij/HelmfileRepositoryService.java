@@ -70,40 +70,56 @@ public final class HelmfileRepositoryService implements Disposable {
         new Task.Backgroundable(project, "Load Helm chart repositories", true) {
             @Override public boolean shouldStartInBackground() { return true; }
             @Override public void run(@NotNull ProgressIndicator indicator) {
-                active.add(indicator);
-                try {
-                    for (int i = 0; i < work.size(); i++) {
-                        indicator.checkCanceled();
-                        if (disposed) return;
-                        Query query = work.get(i);
-                        indicator.setText("Loading " + query.access().name());
-                        indicator.setFraction((double) i / work.size());
-                        try {
-                            HelmfileChartIndex index = HelmfileRepositoryDownload.load(query.access(), query.chart(), indicator);
-                            if (!disposed) cache.put(query, new Snapshot(index, null, false, System.currentTimeMillis()));
-                        } catch (IOException error) {
-                            Snapshot previous = cache.get(query);
-                            if (!disposed) cache.put(query, new Snapshot(previous == null ? null : previous.index(),
-                                    "Repository unavailable; using repository names or the last downloaded index", false, System.currentTimeMillis()));
-                        }
-                    }
-                } finally {
-                    active.remove(indicator);
-                    work.forEach(pending::remove);
-                    restartAnalysis();
-                }
+                loadRepositories(work, indicator);
             }
             @Override public void onSuccess() {
                 if (!notify || disposed || project.isDisposed()) return;
                 long ready = work.stream().map(cache::get).filter(Objects::nonNull).filter(Snapshot::validated).count();
-                NotificationGroupManager.getInstance().getNotificationGroup("Helmfile repositories")
-                        .createNotification("Helm chart repositories", "Loaded " + ready + " of " + work.size()
-                                + " repository indexes or chart tag lists."
-                                + (ready < work.size() ? " Unavailable repositories keep repository-name completion and previously downloaded suggestions." : ""),
-                                ready == work.size() ? NotificationType.INFORMATION : NotificationType.WARNING).notify(project);
+                String summary = "Loaded " + ready + " of " + work.size() + " repository indexes or chart tag lists.";
+                if (ready == work.size()) NotificationGroupManager.getInstance().getNotificationGroup("Helmfile repositories")
+                        .createNotification("Helm chart repositories", summary, NotificationType.INFORMATION).notify(project);
+                else {
+                    List<String> failures = work.stream().map(cache::get).filter(Objects::nonNull).map(Snapshot::error).filter(Objects::nonNull).toList();
+                    HelmfileDownloadDiagnostics.notify(project, "Helm chart repositories",
+                            summary + "\n" + failures.stream().limit(3).map(HelmfileDownloadDiagnostics::preview).collect(java.util.stream.Collectors.joining("\n")),
+                            summary + "\n\n" + String.join("\n\n", failures));
+                }
             }
             @Override public void onCancel() { work.forEach(pending::remove); }
         }.queue();
+    }
+    void loadRepositories(List<Query> work, ProgressIndicator indicator) {
+        active.add(indicator);
+        try {
+            indicator.checkCanceled();
+            indicator.setIndeterminate(false);
+            indicator.setFraction(0);
+            for (int i = 0; i < work.size(); i++) {
+                indicator.checkCanceled();
+                if (disposed) return;
+                Query query = work.get(i);
+                indicator.setText("Loading " + query.access().name());
+                try {
+                    HelmfileChartIndex index = HelmfileRepositoryDownload.load(query.access(), query.chart(), indicator);
+                    if (!disposed) cache.put(query, new Snapshot(index, null, false, System.currentTimeMillis()));
+                } catch (IOException error) {
+                    Snapshot previous = cache.get(query);
+                    String source = query.access().name() + (query.chart().isEmpty() ? "" : "/" + query.chart());
+                    String endpoint = query.access().url();
+                    if (query.access().oci() && !endpoint.contains("://")) endpoint = "oci://" + endpoint;
+                    String message = "Repository '" + source + "' unavailable: " + HelmfileDownloadDiagnostics.reason(error, query.access())
+                            + "\nRepository URL: " + endpoint
+                            + (previous != null && previous.index() != null ? "\nUsing the last downloaded index." : "\nRepository-name completion remains available.");
+                    if (!disposed) cache.put(query, new Snapshot(previous == null ? null : previous.index(),
+                            HelmfileDownloadDiagnostics.clean(message, query.access()), false, System.currentTimeMillis()));
+                }
+                indicator.setFraction((double) (i + 1) / work.size());
+            }
+        } finally {
+            active.remove(indicator);
+            work.forEach(pending::remove);
+            restartAnalysis();
+        }
     }
     // Shared by deterministic fixture tests and successful downloads; no network needed for inspections.
     void remember(Query query, HelmfileChartIndex index) { cache.put(query, new Snapshot(index, null, false, System.currentTimeMillis())); }

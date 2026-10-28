@@ -334,7 +334,108 @@ public class HelmfileChartNavigationTest extends BasePlatformTestCase {
         Files.writeString(executable, "#!/bin/sh\nexit 7\n");
         var failure = org.junit.Assert.assertThrows(java.util.concurrent.ExecutionException.class, () -> fetch(pull("1.0.0")));
         assertInstanceOf(failure.getCause(), IOException.class);
+        assertTrue(failure.getCause().getMessage().contains("code 7"));
+        assertTrue(failure.getCause().getMessage().contains("no output"));
         try (var files = Files.list(directory.resolve("cache"))) { assertEquals(0L, files.count()); }
+    }
+    public void testFailedDownloadPreservesHelmStderrAndStdout() throws Exception {
+        Files.writeString(executable, "#!/bin/sh\nprintf 'Checking repository\\n'\nprintf 'Warning: retrying\\nError: chart sample version 1.0.0 not found\\n' >&2\nexit 1\n");
+        var failure = org.junit.Assert.assertThrows(java.util.concurrent.ExecutionException.class, () -> fetch(pull("1.0.0")));
+        String message = failure.getCause().getMessage();
+        assertTrue(message, message.contains("Error: chart sample version 1.0.0 not found"));
+        assertTrue(message, message.contains("Checking repository"));
+        assertTrue(message, message.contains("code 1"));
+    }
+    public void testFailedDownloadUsesStdoutErrorWhenStderrIsEmptyOrOnlyWarnings() throws Exception {
+        for (String warning : List.of("", "printf 'Warning: retrying\\n' >&2\n")) {
+            Files.writeString(executable, "#!/bin/sh\n" + warning + "printf 'Error: registry returned 403 Forbidden\\n'\nexit 1\n");
+            var failure = org.junit.Assert.assertThrows(java.util.concurrent.ExecutionException.class, () -> fetch(pull("1.0.0")));
+            assertTrue(failure.getCause().getMessage(), failure.getCause().getMessage().lines().findFirst().orElseThrow().contains("403 Forbidden"));
+        }
+    }
+    public void testFailedStartShowsTheExecutableErrorAndSettingsLocation() throws Exception {
+        Files.delete(executable);
+        var failure = org.junit.Assert.assertThrows(java.util.concurrent.ExecutionException.class, () -> fetch(pull("1.0.0")));
+        assertInstanceOf(failure.getCause(), IOException.class);
+        assertTrue(failure.getCause().getMessage().contains("fake helm"));
+        assertTrue(failure.getCause().getMessage().contains("Settings | Tools | Helmfile"));
+    }
+    public void testFailureNotificationOpensNativeDetailsWithContextAndRedactedOutput() throws Exception {
+        String password = "top secret-42";
+        String encoded = java.net.URLEncoder.encode(password, java.nio.charset.StandardCharsets.UTF_8).replace("+", "%20");
+        String basic = Base64.getEncoder().encodeToString(("alice:" + password).getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        Path errors = Files.writeString(directory.resolve("download-error.txt"), "Warning: retrying\nError: 401 Unauthorized for https://alice:" + encoded
+                + "@repo.invalid/charts?private_token=query-secret\nAuthorization: Bearer header-secret   \nBasic value: "
+                + basic + "\nPassword: " + password + "\nPassword with terminal control: top\u0000 secret-42\n\"access_token\": \"json-secret\"\n");
+        Files.writeString(executable, "#!/bin/sh\nprintf 'Repository lookup started\\n'\ncat '"
+                + errors.toString().replace("'", "'\\''") + "' >&2\nexit 1\n");
+        var access = new HelmfileRepositories.Access("example", "https://alice:" + encoded + "@repo.invalid/charts?private_token=query-secret",
+                false, "alice", password, "", "", "", false, false, false);
+        var request = new HelmfileChartNavigation.Request("example/sample", "2.7.4", directory.toString(), executable.toString(), access,
+                false, false, "", "");
+        HelmfileSettings.get(getProject()).select("staging");
+        List<com.intellij.notification.Notification> notifications = new java.util.concurrent.CopyOnWriteArrayList<>();
+        getProject().getMessageBus().connect(getTestRootDisposable()).subscribe(com.intellij.notification.Notifications.TOPIC,
+                new com.intellij.notification.Notifications() {
+                    @Override public void notify(com.intellij.notification.Notification notification) { notifications.add(notification); }
+                });
+        var started = com.intellij.util.concurrency.AppExecutorUtil.getAppExecutorService().submit(() -> HelmfileChartSourceService.get(getProject()).open(request));
+        com.intellij.testFramework.PlatformTestUtil.waitForFuture(started, 10_000);
+        com.intellij.testFramework.PlatformTestUtil.waitWithEventsDispatching("Missing chart failure notification", () -> !notifications.isEmpty(), 10_000);
+        var notification = notifications.getFirst();
+        assertTrue(notification.getContent(), notification.getContent().contains("401 Unauthorized"));
+        assertTrue(notification.getContent().contains("example/sample"));
+        assertTrue(notification.getContent().contains("2.7.4"));
+        assertTrue(notification.getContent().contains("staging"));
+        var action = (com.intellij.notification.NotificationAction) notification.getActions().getFirst();
+        assertEquals("Show Details", action.getTemplatePresentation().getText());
+        var event = com.intellij.openapi.actionSystem.AnActionEvent.createEvent(action,
+                com.intellij.openapi.actionSystem.impl.SimpleDataContext.getProjectContext(getProject()), action.getTemplatePresentation().clone(),
+                "test", com.intellij.openapi.actionSystem.ActionUiKind.NONE, null);
+        // The IDE skips showing Run content in unit-test mode; capture that public service call.
+        var shown = new java.util.concurrent.atomic.AtomicReference<com.intellij.execution.ui.RunContentDescriptor>();
+        var delegate = com.intellij.execution.ui.RunContentManager.getInstance(getProject());
+        var capturing = (com.intellij.execution.ui.RunContentManager) java.lang.reflect.Proxy.newProxyInstance(
+                com.intellij.execution.ui.RunContentManager.class.getClassLoader(), new Class<?>[]{com.intellij.execution.ui.RunContentManager.class},
+                (proxy, method, args) -> {
+                    if (method.getName().equals("showRunContent")) {
+                        assertSame(com.intellij.execution.executors.DefaultRunExecutor.getRunExecutorInstance(), args[0]);
+                        shown.set((com.intellij.execution.ui.RunContentDescriptor) args[1]);
+                        com.intellij.openapi.util.Disposer.register(getTestRootDisposable(), shown.get());
+                        return null;
+                    }
+                    try { return method.invoke(delegate, args); }
+                    catch (java.lang.reflect.InvocationTargetException exception) { throw exception.getCause(); }
+                });
+        com.intellij.testFramework.ServiceContainerUtil.replaceService(getProject(), com.intellij.execution.ui.RunContentManager.class, capturing, getTestRootDisposable());
+        action.actionPerformed(event, notification);
+        var descriptor = shown.get();
+        assertNotNull("Show Details must open the native Run console", descriptor);
+        assertEquals("Cannot open Helm chart", descriptor.getDisplayName());
+        try {
+            var console = (com.intellij.execution.impl.ConsoleViewImpl) descriptor.getExecutionConsole();
+            console.flushDeferredText();
+            String details = console.getEditor().getDocument().getText();
+            assertTrue(details, details.contains("Chart: example/sample"));
+            assertTrue(details.contains("Environment: staging"));
+            assertTrue(details.contains("Version: 2.7.4"));
+            assertTrue(details.contains("Repository lookup started"));
+            assertTrue(details.contains("Warning: retrying"));
+            assertTrue(details.contains("401 Unauthorized"));
+            for (String secret : List.of(password, encoded, basic, "query-secret", "header-secret", "json-secret", "alice:")) {
+                assertFalse(details, details.contains(secret));
+                assertFalse(notification.getContent(), notification.getContent().contains(secret));
+            }
+        } finally { com.intellij.openapi.util.Disposer.dispose(descriptor); }
+    }
+    public void testLargeHelmFailureRetainsTheFinalErrorAndMarksTruncatedOutput() {
+        var output = new com.intellij.execution.process.ProcessOutput();
+        output.appendStderr("Download started\n" + "Verbose progress line\n".repeat(4000) + "Error: connection reset while downloading sample\n");
+        String message = HelmfileDownloadDiagnostics.processFailure("Helm exited with code 1", output, pull("1.0.0").access());
+        assertTrue(message, message.lines().findFirst().orElseThrow().contains("connection reset"));
+        assertTrue(message.contains("Download started"));
+        assertTrue(message.contains("Output truncated"));
+        assertTrue(message.length() < 35_000);
     }
     public void testCancelledDownloadNeverStartsHelm() {
         var indicator = new EmptyProgressIndicator(); indicator.cancel();

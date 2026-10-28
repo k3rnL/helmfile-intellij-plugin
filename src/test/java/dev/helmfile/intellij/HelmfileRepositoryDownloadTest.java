@@ -101,6 +101,50 @@ public class HelmfileRepositoryDownloadTest extends BasePlatformTestCase {
         try { HelmfileChartIndex.parse("!!java.net.URL [https://example.org]"); fail("Accepted custom YAML object tag"); }
         catch (IOException expected) { }
     }
+    public void testBatchProgressIsDeterminateAndFailuresPreserveCachedSuggestions() throws Exception {
+        server.createContext("/good/index.yaml", exchange -> reply(exchange, HelmfileRepositoryInsightTest.INDEX));
+        server.createContext("/denied/index.yaml", exchange -> { exchange.sendResponseHeaders(403, -1); exchange.close(); });
+        var good = new HelmfileRepositoryService.Query(access(origin() + "/good", false, "", ""), "");
+        var denied = new HelmfileRepositoryService.Query(access(origin() + "/denied?private_token=query-secret", false, "", ""), "");
+        var service = HelmfileRepositoryService.get(getProject());
+        var cached = HelmfileChartIndex.parse(HelmfileRepositoryInsightTest.INDEX);
+        service.remember(denied, cached);
+        List<Double> fractions = new ArrayList<>();
+        var indicator = new com.intellij.openapi.progress.util.ProgressIndicatorBase() {
+            @Override public void setFraction(double fraction) {
+                assertFalse("Fractional progress requires determinate mode", isIndeterminate());
+                fractions.add(fraction);
+                super.setFraction(fraction);
+            }
+        };
+        indicator.setIndeterminate(true);
+        ApplicationManager.getApplication().executeOnPooledThread(() -> service.loadRepositories(List.of(good, denied), indicator)).get(15, TimeUnit.SECONDS);
+        assertEquals(List.of(0.0, 0.5, 1.0), fractions);
+        assertTrue(service.snapshot(good, false).validated());
+        var failure = service.snapshot(denied, false);
+        assertFalse(failure.validated());
+        assertSame(cached, failure.index());
+        assertTrue(failure.error(), failure.error().contains("HTTP 403 Forbidden"));
+        assertTrue(failure.error().contains("last downloaded index"));
+        assertFalse(failure.error(), failure.error().contains("query-secret"));
+    }
+    public void testManualRefreshNotificationIncludesTheActualHttpFailure() {
+        server.createContext("/denied/index.yaml", exchange -> { exchange.sendResponseHeaders(401, -1); exchange.close(); });
+        var query = new HelmfileRepositoryService.Query(access(origin() + "/denied?private_token=query-secret", false, "", ""), "");
+        List<com.intellij.notification.Notification> notifications = new java.util.concurrent.CopyOnWriteArrayList<>();
+        getProject().getMessageBus().connect(getTestRootDisposable()).subscribe(com.intellij.notification.Notifications.TOPIC,
+                new com.intellij.notification.Notifications() {
+                    @Override public void notify(com.intellij.notification.Notification notification) { notifications.add(notification); }
+                });
+        var started = com.intellij.util.concurrency.AppExecutorUtil.getAppExecutorService().submit(() ->
+                HelmfileRepositoryService.get(getProject()).refresh(List.of(query), true));
+        com.intellij.testFramework.PlatformTestUtil.waitForFuture(started, 10_000);
+        com.intellij.testFramework.PlatformTestUtil.waitWithEventsDispatching("Missing repository failure notification", () -> !notifications.isEmpty(), 10_000);
+        var notification = notifications.getFirst();
+        assertTrue(notification.getContent(), notification.getContent().contains("HTTP 401 Unauthorized"));
+        assertFalse(notification.getContent().contains("query-secret"));
+        assertEquals("Show Details", notification.getActions().getFirst().getTemplatePresentation().getText());
+    }
     public void testSlowRepositoryDownloadDoesNotBlockEditingCompletionOrGutters() {
         var entered = new java.util.concurrent.CountDownLatch(1);
         var release = new java.util.concurrent.CountDownLatch(1);

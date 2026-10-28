@@ -9,7 +9,7 @@ Targets IntelliJ IDEA 2026.1 (build 261+) with YAML and Version Control support 
 ## Install
 
 Build with `./gradlew buildPlugin`, then open **Settings → Plugins → ⚙ → Install Plugin from Disk**,
-select `build/distributions/helmfile-intellij-plugin-0.5.2.zip`, and restart the IDE if prompted.
+select `build/distributions/helmfile-intellij-plugin-0.5.3.zip`, and restart the IDE if prompted.
 The first build downloads the IntelliJ SDK and Gradle dependencies.
 
 The plugin recognizes `helmfile.yaml`, `helmfile.yml`, `*.gotmpl`, and `_*.tpl` helper files as
@@ -73,7 +73,9 @@ Declare repositories using [Helmfile's repository configuration](https://helmfil
 Repository aliases complete immediately. Chart names and versions load in the background when
 needed; invoke completion again after loading, or use **Tools → Helmfile: Refresh Chart Repositories**
 to load them ahead of time. Downloads use IntelliJ's proxy settings and native background progress.
-The refresh action reports how many indexes or OCI tag lists were loaded.
+The refresh action reports how many indexes or OCI tag lists were loaded. Failed repositories show
+their HTTP, TLS, or connection error, with **Show Details** opening diagnostics in the native Run
+console. Previously downloaded suggestions remain available when a refresh fails.
 
 Completion works in releases, reusable templates, and `dependencies` entries, across `---` separators
 and local `bases`. Version completion also follows a chart inherited from a template. For HTTP(S)
@@ -132,6 +134,11 @@ batched in the background, and editing and completion do not wait for the respon
 Local completion, forward navigation, syntax diagnostics, and release gutters are available while
 IntelliJ indexes the project. Project-wide usage searches and downward inheritance arrows wait
 until the index is ready.
+
+If a chart download fails, the notification shows Helm's error together with the chart, requested
+version, and selected environment. **Show Details** opens the native Run console with repository
+context and Helm's standard error and standard output. Credentials are redacted. Very long output
+is explicitly marked as truncated, preserving its first and last sections. Cancellation is silent.
 
 ## Values resolution
 
