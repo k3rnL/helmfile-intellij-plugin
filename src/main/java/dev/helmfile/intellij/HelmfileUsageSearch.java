@@ -15,12 +15,13 @@ final class HelmfileUsageSearch {
         // Word-search callbacks run concurrently, including during automatic usage highlighting.
         Map<String, PsiReference> references = new ConcurrentHashMap<>();
         boolean templateDeclaration = HelmfileTemplates.isDeclaration(declaration);
+        boolean repositoryDeclaration = HelmfileRepositories.isDeclaration(declaration);
         PsiSearchHelper.getInstance(declaration.getProject()).processElementsWithWord((element, offsetInElement) -> {
             ProgressManager.checkCanceled();
             PsiFile file = element.getContainingFile();
             if (file == null) return true;
             int offset = element.getTextRange().getStartOffset() + offsetInElement;
-            if (!templateDeclaration && HelmfileValues.supported(file)) {
+            if (!templateDeclaration && !repositoryDeclaration && HelmfileValues.supported(file)) {
                 PsiFile template = file.getViewProvider().getPsi(HelmfileLanguage.INSTANCE);
                 PsiElement leaf = template == null ? null : template.findElementAt(offset);
                 var atom = PsiTreeUtil.getParentOfType(leaf, HelmfileParserDefinition.Atom.class, false);
@@ -38,8 +39,14 @@ final class HelmfileUsageSearch {
                     if (covers(reference, offset) && reference.isReferenceTo(declaration)) add(references, reference);
                 }
             }
+            if (repositoryDeclaration) {
+                YAMLFile yaml = HelmfileValues.yaml(file);
+                YAMLScalar scalar = yaml == null ? null : PsiTreeUtil.getParentOfType(yaml.findElementAt(offset), YAMLScalar.class, false);
+                var reference = scalar == null ? null : HelmfileRepositories.reference(scalar);
+                if (reference != null && covers(reference, offset) && reference.isReferenceTo(declaration)) add(references, reference);
+            }
             return true;
-        }, scope, declaration.getKeyText(), UsageSearchContext.ANY, true);
+        }, scope, HelmfileSymbols.name(declaration), UsageSearchContext.ANY, true);
         return List.copyOf(references.values());
     }
     private static boolean covers(PsiReference reference, int offset) {

@@ -14,6 +14,7 @@ association under **Settings → Editor → File Types**.
 | Complete repositories and charts | Press **Ctrl+Space** in `chart:` for declared repository aliases; after `repository/`, complete chart names from its downloaded index. |
 | Complete chart versions | Press **Ctrl+Space** in `version:` for available versions of the associated chart, newest first. |
 | Navigate to a repository | **Ctrl+Click / Ctrl+B** on the repository prefix in `chart: repository/chart`. |
+| Find repository usages | **Ctrl+Click / Ctrl+B** on the name in `repositories[].name`, or use **Alt+F7**, to find chart references to that declaration. |
 | Browse a chart | **Ctrl+Click / Ctrl+B** on the chart-name segment. Opens `Chart.yaml` and adds the complete chart folder under **External Libraries**. |
 | Refresh repository metadata | **Tools → Helmfile: Refresh Chart Repositories**, also available through **Find Action** and inspection quick fixes. |
 | Complete state values | Type `{{ .Values.`, `{{ .StateValues.`, or a nested path such as `{{ .StateValues.versions.` and press **Ctrl+Space**. |
@@ -76,6 +77,11 @@ Chart and version warnings require a successfully loaded index or tag list. Loca
 chart URLs, unresolved templates, and Helm version constraints are excluded from checks which
 cannot be resolved statically. Missing or dynamic base files suppress uncertain alias warnings.
 Change the inspection severity or disable it through **Editor → Inspections → Helmfile**.
+
+Ctrl+Click a declared repository name, such as `trino` in `name: trino`, to open IntelliJ's native
+usage lookup. It includes chart references in releases, reusable templates, and chart dependencies,
+including states that include the declaration through `bases`. The search follows that declaration;
+unrelated or overriding repositories with the same alias are excluded. **Alt+F7** opens Find Usages.
 
 Metadata is cached in memory for the current project session. Successful results refresh after five
 minutes when needed; failed requests retry after one minute. An unavailable repository preserves

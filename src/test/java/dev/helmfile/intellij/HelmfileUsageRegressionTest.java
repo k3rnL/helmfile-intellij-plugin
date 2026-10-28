@@ -128,6 +128,16 @@ public class HelmfileUsageRegressionTest extends BasePlatformTestCase {
         assertInstanceOf(manager.view, UsageViewPopup.class);
         assertSize(1, manager.usages);
     }
+    public void testNativeCtrlClickOnRepositoryNameOpensItsChartUsages() {
+        PsiFile file = myFixture.configureByText("helmfile.yaml.gotmpl", "repositories:\n  - name: trino\n    url: https://repo.invalid\nreleases:\n  - name: api\n    chart: trino/trino\n  - name: worker\n    chart: trino/worker\n");
+        myFixture.getEditor().getCaretModel().moveToOffset(file.getText().indexOf("name: trino") + "name: ".length());
+        CapturingPopupManager manager = captureNativePopup();
+        invokeNativeGoToDeclaration(file);
+        assertInstanceOf(manager.view, UsageViewPopup.class);
+        assertSize(2, manager.usages);
+        assertTrue(manager.handler.getPresentation().getSearchTargetString().contains("trino"));
+        for (Usage usage : manager.usages) assertTrue(((UsageInfo2UsageAdapter) usage).getPlainText().contains("chart:"));
+    }
     public void testNativeGoToDeclarationActionUsesPreviewForAmbiguousEnvironmentFields() {
         PsiFile file = myFixture.addFileToProject("helmfile.yaml.gotmpl", STATE);
         myFixture.configureFromExistingVirtualFile(file.getVirtualFile());

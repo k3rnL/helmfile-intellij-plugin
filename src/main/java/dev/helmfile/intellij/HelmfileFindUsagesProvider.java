@@ -18,7 +18,7 @@ public final class HelmfileFindUsagesProvider implements FindUsagesProvider {
         return "Helmfile declaration";
     }
     @Override public @NotNull String getDescriptiveName(@NotNull PsiElement element) {
-        var key = HelmfileSymbols.key(element); return key == null ? element.getText() : key.getKeyText();
+        var key = HelmfileSymbols.key(element); return key == null ? element.getText() : HelmfileSymbols.name(key);
     }
     @Override public @NotNull String getNodeText(@NotNull PsiElement element, boolean useFullName) { return getDescriptiveName(element); }
 }

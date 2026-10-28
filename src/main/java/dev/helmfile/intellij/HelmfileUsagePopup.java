@@ -20,7 +20,7 @@ final class HelmfileUsagePopup {
     private final boolean declarationMode;
 
     static HelmfileUsagePopup usages(YAMLKeyValue declaration) {
-        return new HelmfileUsagePopup(declaration, declaration.getKeyText(), List.of(), false);
+        return new HelmfileUsagePopup(declaration, HelmfileSymbols.name(declaration), List.of(), false);
     }
     static HelmfileUsagePopup declarations(PsiElement source, String name, List<? extends PsiElement> declarations) {
         return new HelmfileUsagePopup(source, name, declarations, true);

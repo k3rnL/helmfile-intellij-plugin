@@ -51,6 +51,6 @@ public final class HelmfileGotoDeclarationHandler implements GotoDeclarationHand
         if (com.intellij.openapi.project.DumbService.isDumb(file.getProject())) return null;
         YAMLKeyValue key = HelmfileSymbols.key(source);
         if (key == null || !HelmfileSymbols.isDeclaration(key)) return null;
-        return new PsiElement[]{new HelmfileNavigationRequest(key, editor, HelmfileUsagePopup.usages(key), "Show usages of " + key.getKeyText()).toPsi()};
+        return new PsiElement[]{new HelmfileNavigationRequest(key, editor, HelmfileUsagePopup.usages(key), "Show usages of " + HelmfileSymbols.name(key)).toPsi()};
     }
 }

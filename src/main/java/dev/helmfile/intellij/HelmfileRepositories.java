@@ -51,6 +51,10 @@ final class HelmfileRepositories {
         String context = HelmfileSchema.context(HelmfileSchema.ancestors(key));
         return context.equals("releases") || context.equals("dependencies");
     }
+    static boolean isDeclaration(YAMLKeyValue key) {
+        return key.getKeyText().equals("name") && HelmfileSchema.ancestors(key).equals(List.of("repositories"))
+                && key.getValue() instanceof YAMLScalar scalar && !HelmfileValues.pathText(scalar).isBlank();
+    }
     static String value(@Nullable YAMLMapping mapping, String key) {
         if (mapping == null) return "";
         YAMLKeyValue entry = mapping.getKeyValueByKey(key);
@@ -135,6 +139,12 @@ final class HelmfileRepositories {
         @Override public PsiElement resolve() {
             Repository repository = model(myElement.getContainingFile()).named().get(name);
             return repository == null ? null : repository.target();
+        }
+        @Override public boolean isReferenceTo(@NotNull PsiElement element) {
+            YAMLKeyValue declaration = HelmfileSymbols.key(element);
+            Repository repository = model(myElement.getContainingFile()).named().get(name);
+            return declaration != null && repository != null
+                    && myElement.getManager().areElementsEquivalent(repository.declaration(), declaration);
         }
         @Override public Object @NotNull [] getVariants() { return EMPTY_ARRAY; }
     }
