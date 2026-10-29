@@ -16,6 +16,7 @@
     <depends>org.jetbrains.plugins.yaml</depends>
     <depends>com.intellij.modules.vcs</depends>
     <extensions defaultExtensionNs="com.intellij">
+        <typedHandler implementation="dev.helmfile.intellij.HelmfileTypedHandler" order="first"/>
         <errorHandler implementation="com.intellij.diagnostic.JetBrainsMarketplaceErrorReportSubmitter"/>
         <projectConfigurable parentId="tools" id="dev.helmfile.settings" displayName="Helmfile"
                              instance="dev.helmfile.intellij.HelmfileConfigurable"/>
