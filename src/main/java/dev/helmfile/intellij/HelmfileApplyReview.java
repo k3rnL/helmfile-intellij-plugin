@@ -30,7 +30,7 @@ final class HelmfileApplyReview {
         catch (java.io.IOException ignored) { return false; }
     }
     AnAction action() {
-        return new DumbAwareAction("Apply reviewed changes", "Apply " + command.scope() + " [" + command.environment() + "]", HelmfileOperation.APPLY.icon) {
+        AnAction action = new DumbAwareAction("Apply reviewed changes", "Apply " + command.scope() + " [" + command.environment() + "]", HelmfileOperation.APPLY.icon) {
             @Override public @NotNull ActionUpdateThread getActionUpdateThread() { return ActionUpdateThread.BGT; }
             @Override public void update(@NotNull AnActionEvent event) {
                 boolean enabled = current();
@@ -42,5 +42,7 @@ final class HelmfileApplyReview {
                 if (current() && used.compareAndSet(false, true)) HelmfileReleaseAction.runReviewed(project, command, variables, passParent);
             }
         };
+        action.getTemplatePresentation().putClientProperty(com.intellij.openapi.actionSystem.ex.ActionUtil.SHOW_TEXT_IN_TOOLBAR, true);
+        return action;
     }
 }

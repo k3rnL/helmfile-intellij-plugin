@@ -165,6 +165,7 @@ public class HelmfileDiffTest extends BasePlatformTestCase {
         assertFalse(Files.readString(calls).contains("\napply\n"));
         var action = request(shown.getFirst().getRequests().getFirst()).getUserData(DiffUserDataKeys.CONTEXT_ACTIONS).getFirst();
         assertEquals("Apply reviewed changes", action.getTemplatePresentation().getText());
+        assertEquals(Boolean.TRUE, action.getTemplatePresentation().getClientProperty(com.intellij.openapi.actionSystem.ex.ActionUtil.SHOW_TEXT_IN_TOOLBAR));
         assertSame(action, request(shown.getFirst().getRequests().get(1)).getUserData(DiffUserDataKeys.CONTEXT_ACTIONS).getFirst());
         var event = event(action);
         action.update(event); assertTrue(event.getPresentation().isEnabled());
