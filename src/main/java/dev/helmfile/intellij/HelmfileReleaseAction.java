@@ -17,7 +17,7 @@ public class HelmfileReleaseAction extends AnAction implements com.intellij.open
     private final HelmfileOperation operation;
     private final SmartPsiElementPointer<YAMLKeyValue> pointer;
     HelmfileReleaseAction(HelmfileOperation operation, YAMLKeyValue declaration) {
-        super(operation.label + " Release…", operation.description, AllIcons.Actions.Execute);
+        super(operation.label + " Release…", operation.description, operation.icon);
         this.operation = operation;
         pointer = declaration == null ? null : SmartPointerManager.createPointer(declaration);
     }
@@ -60,6 +60,5 @@ public class HelmfileReleaseAction extends AnAction implements com.intellij.open
     public static final class Template extends HelmfileReleaseAction { public Template() { super(HelmfileOperation.TEMPLATE, null); } }
     public static final class Diff extends HelmfileReleaseAction { public Diff() { super(HelmfileOperation.DIFF, null); } }
     public static final class Apply extends HelmfileReleaseAction { public Apply() { super(HelmfileOperation.APPLY, null); } }
-    public static final class Delete extends HelmfileReleaseAction { public Delete() { super(HelmfileOperation.DELETE, null); } }
     public static final class Destroy extends HelmfileReleaseAction { public Destroy() { super(HelmfileOperation.DESTROY, null); } }
 }

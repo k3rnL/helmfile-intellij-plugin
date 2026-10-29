@@ -37,7 +37,7 @@ again if repository metadata is still loading. **Esc** leaves live-template edit
 | Read function documentation | Use **Quick Documentation (Ctrl+Q)**, or **Alt+Enter → Show Go template function documentation**. |
 | Inspect a resolved value | Use **Quick Documentation** on a values path to see its value, source file, and selected environment. |
 | Select an environment | Click its gutter button under `environments`, or use **Tools → Helmfile: Select Environment** through the menu or **Find Action**. |
-| Run a release | Click the run icon beside its `name`, or right-click inside the release and choose **Helmfile → Template / Apply / Delete / Destroy Release…**. |
+| Run a release | Click the run icon beside its `name`, or right-click inside the release and choose **Helmfile → Template / Apply / Destroy Release…**. |
 | Diff a release | Click its run icon and choose **Diff Release…** to compare deployed and desired YAML in IntelliJ's diff viewer. |
 | Diff the whole Helmfile | Click the run icon beside `releases:`, or use **Tools → Helmfile: Diff All Releases…**. Also available in the editor's Helmfile context menu and Find Action. |
 | Customize syntax colors | **Settings → Editor → Color Scheme → Helmfile**. |
@@ -196,7 +196,7 @@ parsed together, so navigation is best effort where the YAML shape depends on re
 Install `helmfile`, `helm`, and any Helm plugins your state requires, then configure the executable
 in **Settings → Tools → Helmfile**. The default executable is `helmfile` from the IDE's PATH.
 
-1. Click the run icon beside a release name and choose **Template**, **Diff**, **Apply**, **Delete**, or **Destroy**.
+1. Click the run icon beside a release name and choose **Template**, **Diff**, **Apply**, or **Destroy**.
 2. Choose the environment in the standard IDE dialog. The list includes environments declared in
    the state and its bases; you can also type a name. The editor's selected environment is the initial choice.
 3. Check the release name, optional namespace selector, and command preview, then click **Run**.
@@ -215,7 +215,8 @@ in the state file's directory. A namespace adds `,namespace=<namespace>` to the 
 overriding the release namespace. Use it when the same name occurs in multiple namespaces.
 Helmfile's normal selector and nested-state rules apply. Arguments are passed directly to the executable.
 Helmfile's CLI interactive prompt is disabled because the IDE handles environment confirmation.
-**Delete** runs Helmfile's deprecated `delete` command; **Destroy** runs `destroy` (uninstall and purge).
+**Destroy** runs `destroy` to uninstall the release. Saved configurations using the old Delete action
+require choosing Destroy explicitly in **Run → Edit Configurations** before they can run.
 
 ### Review a Helmfile diff
 

@@ -1,15 +1,18 @@
 package dev.helmfile.intellij;
 
+import com.intellij.icons.AllIcons;
+import javax.swing.Icon;
+
 enum HelmfileOperation {
-    TEMPLATE("Template", "Render the release manifests"),
-    DIFF("Diff", "Compare deployed and desired manifests in the IDE diff viewer"),
-    APPLY("Apply", "Apply changes to the release"),
-    DELETE("Delete", "Delete the release (Helmfile's deprecated delete command)"),
-    DESTROY("Destroy", "Uninstall and purge the release");
+    TEMPLATE("Template", "Render and browse release manifests", AllIcons.Actions.Preview),
+    DIFF("Diff", "Compare deployed and desired manifests in the IDE diff viewer", AllIcons.Actions.Diff),
+    APPLY("Apply", "Review changes in the IDE before applying the release", AllIcons.Actions.Checked),
+    DESTROY("Destroy", "Uninstall and purge the release", AllIcons.Actions.Cancel);
 
     final String label;
     final String description;
-    HelmfileOperation(String label, String description) { this.label = label; this.description = description; }
+    final Icon icon;
+    HelmfileOperation(String label, String description, Icon icon) { this.label = label; this.description = description; this.icon = icon; }
     String command() { return name().toLowerCase(java.util.Locale.ROOT); }
     @Override public String toString() { return label; }
 }

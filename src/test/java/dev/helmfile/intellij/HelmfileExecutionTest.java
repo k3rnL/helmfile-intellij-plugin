@@ -210,8 +210,10 @@ public class HelmfileExecutionTest extends BasePlatformTestCase {
         });
         assertSize(3, markers);
         var releaseMarker = markers.stream().filter(marker -> marker.actions.length > 1).findFirst().orElseThrow();
-        assertEquals(List.of("Template Release…", "Diff Release…", "Apply Release…", "Delete Release…", "Destroy Release…"),
+        assertEquals(List.of("Template Release…", "Diff Release…", "Apply Release…", "Destroy Release…"),
                 Arrays.stream(releaseMarker.actions).map(action -> action.getTemplatePresentation().getText()).toList());
+        assertEquals(4, Arrays.stream(releaseMarker.actions).map(action -> action.getTemplatePresentation().getIcon()).distinct().count());
+        assertNull(com.intellij.openapi.actionSystem.ActionManager.getInstance().getAction("Helmfile.Release.Delete"));
         YAMLKeyValue api = HelmfileReleaseTarget.at(file, file.getText().indexOf("nginx"));
         assertNotNull(api);
         assertEquals("api", HelmfileReleaseTarget.literal(api));
