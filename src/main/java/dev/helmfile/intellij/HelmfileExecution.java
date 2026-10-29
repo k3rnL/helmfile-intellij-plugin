@@ -52,13 +52,16 @@ final class HelmfileExecution {
             catch (java.io.IOException error) { throw new ExecutionException("Cannot read the Helmfile for review", error); }
         }
         HelmfileDiffRun diff = executed.operation() == HelmfileOperation.DIFF ? new HelmfileDiffRun(project, executed, review) : null;
+        HelmfileTemplateRun template = executed.operation() == HelmfileOperation.TEMPLATE ? new HelmfileTemplateRun(project, executed) : null;
         KillableColoredProcessHandler handler = new KillableColoredProcessHandler(line) {
             @Override protected void destroyProcessImpl() {
                 if (diff != null) diff.cancel();
+                if (template != null) template.cancel();
                 super.destroyProcessImpl();
             }
             @Override protected void detachProcessImpl() {
                 if (diff != null) diff.cancel();
+                if (template != null) template.cancel();
                 super.detachProcessImpl();
             }
             @Override protected void notifyProcessTerminated(int exitCode) {
@@ -68,6 +71,7 @@ final class HelmfileExecution {
             }
         };
         if (diff != null) handler.addProcessListener(diff);
+        if (template != null) handler.addProcessListener(template);
         ProcessTerminatedListener.attach(handler, project);
         return handler;
     }

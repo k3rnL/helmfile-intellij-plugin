@@ -32,7 +32,9 @@ using **Settings → Plugins → ⚙ → Install Plugin from Disk**.
 | Find repository usages | **Ctrl+Click** a repository's declared name to see the charts that use it. |
 | Switch environments | Click the gutter button beside an environment, or use **Tools → Helmfile: Select Environment**. The current environment has a check mark. |
 | Run a release | Click the play icon beside its name for **Template**, **Diff**, **Apply**, or **Destroy**. |
+| Browse rendered manifests | **Template** opens a read-only YAML preview with an all-manifests view and individual resources. |
 | Review deployment changes | Diff one release or the whole Helmfile in the IDE's diff viewer, including individual resources. |
+| Review before applying | **Apply** opens the diff first; **Apply reviewed changes** continues the deployment. |
 
 Shortcuts use the default Windows/Linux keymap. Syntax colors follow your IDE theme and can be
 changed in **Settings → Editor → Color Scheme → Helmfile**.
@@ -50,7 +52,7 @@ see the [user guide](docs/user-guide.md).
 
 Release actions let you choose an environment and review the command before running it.
 Output appears in the IDE's **Run** window, where you can stop or rerun the command.
-Helmfile **Diff** requires the [helm-diff plugin](https://github.com/databus23/helm-diff).
+Helmfile **Diff** and **Apply** require the [helm-diff plugin](https://github.com/databus23/helm-diff).
 
 Environments matching `prod.*` require extra confirmation for every action, including reruns.
 Configure this expression under **Settings → Tools → Helmfile → Protected environments**.

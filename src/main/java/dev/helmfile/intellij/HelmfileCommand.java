@@ -38,7 +38,8 @@ record HelmfileCommand(String file, String release, String namespace, String env
             line.addParameters("--no-color", "diff", "--context", "-1", "--output", "diff", "--detailed-exitcode", "--concurrency", "1");
             line.withEnvironment("HELM_DIFF_COLOR", "false").withEnvironment("HELM_DIFF_OUTPUT_CONTEXT", "-1")
                     .withEnvironment("HELM_DIFF_TOOL", "");
-        } else line.addParameter(operation.command());
+        } else if (operation == HelmfileOperation.TEMPLATE) line.addParameters("--no-color", "template");
+        else line.addParameter(operation.command());
         return line;
     }
 }

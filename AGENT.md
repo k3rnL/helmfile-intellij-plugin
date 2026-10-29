@@ -141,6 +141,12 @@ or inventing an empty follow-up version. Attach every created pull request to th
   confirms protected environments on every run and rerun. Default protection is the full-match regex `prod.*`.
 - Diff uses Helm's standard text renderer with full context, disables external `HELM_DIFF_TOOL`,
   treats detailed exit code 2 as changes, and limits captured output to 32 MiB. Preserve Secret redaction.
+- Apply runs that diff first. Only a complete review can approve the captured command once;
+  approvals are transient and are never cloned, serialized, or reused by reruns. Recheck environment
+  protection before the actual noninteractive apply. Project edits invalidate the review.
+- Template captures stdout separately from the Run console and parses resource identities in a
+  cancellable background task. The native read-only YAML viewer offers aggregate and per-resource
+  output. Preserve raw YAML, bound output to 32 MiB, and never preview failed or stopped runs.
 - Tests use IntelliJ fixtures, fake Helm/Helmfile executables, and local HTTP servers. They never apply
   a real Helmfile or contact a Kubernetes cluster. Release-tool tests use temporary local Git repositories.
 - Marketplace's built-in error handler collects user-consented reports. Authors find them in Marketplace

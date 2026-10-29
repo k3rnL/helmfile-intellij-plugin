@@ -199,7 +199,8 @@ in **Settings → Tools → Helmfile**. The default executable is `helmfile` fro
 1. Click the run icon beside a release name and choose **Template**, **Diff**, **Apply**, or **Destroy**.
 2. Choose the environment in the standard IDE dialog. The list includes environments declared in
    the state and its bases; you can also type a name. The editor's selected environment is the initial choice.
-3. Check the release name, optional namespace selector, and command preview, then click **Run**.
+3. Check the release name, optional namespace selector, and command preview, then click **Run**
+   (**Review changes** for Apply).
    For a templated release name, enter its rendered name for the selected environment.
 4. Follow output in IntelliJ's **Run** tool window. Its standard controls stop or rerun the command.
 
@@ -217,6 +218,23 @@ Helmfile's normal selector and nested-state rules apply. Arguments are passed di
 Helmfile's CLI interactive prompt is disabled because the IDE handles environment confirmation.
 **Destroy** runs `destroy` to uninstall the release. Saved configurations using the old Delete action
 require choosing Destroy explicitly in **Run → Edit Configurations** before they can run.
+
+### Browse rendered manifests
+
+Choose **Template Release…** to render a release for the selected environment. Successful runs
+open IntelliJ's native single-sided YAML viewer:
+
+- **All manifests.yaml** contains the complete rendered output.
+- Use the file chooser or next/previous file actions to browse individual resources as
+  `namespace/Kind/name.yaml`. Resources without an explicit namespace use `_no-namespace`.
+  Duplicate resource names have separate entries; chart `# Source:` comments are retained.
+- Standard syntax highlighting, search, selection, and copy work in the read-only viewer.
+  Rendered output stays in memory; no generated files are added to the project.
+
+Template shows the YAML returned by Helmfile, including rendered Secret values. It keeps the
+normal **Run** console for logs, errors, **Stop**, and **Rerun**. Failed or stopped commands do
+not open partial previews. Output above 32 MiB stays in the console. If some output cannot be
+recognized as a Kubernetes resource, a notification explains that it remains in **All manifests.yaml**.
 
 ### Review and apply a release
 

@@ -74,6 +74,7 @@ public class HelmfileExecutionTest extends BasePlatformTestCase {
             GeneralCommandLine line = command.commandLine(executable.toString(), Map.of(), true);
             var expected = new ArrayList<>(List.of("--file", state.toString(), "--environment", "quality", "--selector", "name=api", "--interactive=false"));
             if (operation == HelmfileOperation.DIFF) expected.addAll(List.of("--no-color", "diff", "--context", "-1", "--output", "diff", "--detailed-exitcode", "--concurrency", "1"));
+            else if (operation == HelmfileOperation.TEMPLATE) expected.addAll(List.of("--no-color", "template"));
             else expected.add(operation.command());
             assertEquals(expected, line.getParametersList().getList());
             assertEquals(directory.toFile(), line.getWorkDirectory());

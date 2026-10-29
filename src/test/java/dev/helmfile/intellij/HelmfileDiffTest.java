@@ -88,6 +88,72 @@ public class HelmfileDiffTest extends BasePlatformTestCase {
                 com.intellij.openapi.actionSystem.ActionUiKind.NONE, null);
     }
 
+    public void testTemplateOpensNativeSingleSidedYamlWithAllAndIndividualManifests() throws Exception {
+        binary(HelmfileTemplateOutputTest.MANIFESTS, "Helm output stays in the console\n", 0);
+        var handler = run(command("api", "staging").withOperation(HelmfileOperation.TEMPLATE));
+        PlatformTestUtil.waitWithEventsDispatching("Template viewer did not open", () -> !shown.isEmpty(), 10);
+        assertEquals(Integer.valueOf(0), handler.getExitCode());
+        var chain = shown.getFirst();
+        assertSize(3, chain.getRequests());
+        assertEquals("All manifests.yaml", chain.getRequests().getFirst().getName());
+        assertEquals("staging/ConfigMap/api.yaml", chain.getRequests().get(1).getName());
+        var all = request(chain.getRequests().getFirst());
+        assertSize(1, all.getContents());
+        assertEquals(HelmfileTemplateOutputTest.MANIFESTS, side(all, 0));
+        assertEquals(YAMLFileType.YML, all.getContents().getFirst().getContentType());
+        assertEquals(Boolean.TRUE, all.getUserData(DiffUserDataKeys.FORCE_READ_ONLY));
+        assertEquals(Boolean.TRUE, chain.getUserData(DiffUserDataKeys.GO_TO_SOURCE_DISABLE));
+        assertTrue(request(chain.getRequests().get(1)).getTitle().contains("[staging]"));
+        assertEmpty(notifications);
+    }
+    public void testFailedTemplateDoesNotShowPartialManifestsAndEmptyOutputIsExplained() throws Exception {
+        binary(HelmfileTemplateOutputTest.MANIFESTS, "Helm error", 1);
+        run(command("api", "staging").withOperation(HelmfileOperation.TEMPLATE));
+        PlatformTestUtil.waitWithEventsDispatching("Template failure notification missing", () -> !notifications.isEmpty(), 10);
+        assertEquals("Helmfile template failed", notifications.getLast().getTitle());
+        assertEquals(NotificationType.ERROR, notifications.getLast().getType());
+        assertEmpty(shown);
+        notifications.clear();
+        binary("", "", 0);
+        run(command("api", "staging").withOperation(HelmfileOperation.TEMPLATE));
+        PlatformTestUtil.waitWithEventsDispatching("Empty template notification missing", () -> !notifications.isEmpty(), 10);
+        assertEquals("No rendered Kubernetes manifests", notifications.getLast().getTitle());
+        assertEmpty(shown);
+    }
+    public void testStoppingTemplateDoesNotOpenPartialManifests() throws Exception {
+        binary(HelmfileTemplateOutputTest.MANIFESTS, "", 0);
+        Path ready = directory.resolve("ready");
+        Files.writeString(executable, Files.readString(executable).replace("exit 0", "touch '" + ready + "'\nread ignored"));
+        var handler = HelmfileExecution.start(getProject(), command("api", "staging").withOperation(HelmfileOperation.TEMPLATE), Map.of(), true);
+        handler.startNotify();
+        try {
+            PlatformTestUtil.waitWithEventsDispatching("Template process did not start", () -> Files.exists(ready), 10);
+            handler.destroyProcess();
+            PlatformTestUtil.waitWithEventsDispatching("Stopped template did not terminate", handler::isProcessTerminated, 10);
+            PlatformTestUtil.dispatchAllEventsInIdeEventQueue();
+            assertEmpty(shown);
+            assertEmpty(notifications);
+        } finally { if (!handler.isProcessTerminated()) ((KillableColoredProcessHandler) handler).killProcess(); }
+    }
+    public void testTemplateUnrecognizedAndOversizedOutputAreExplainedWithoutDroppingRawYaml() throws Exception {
+        String output = "hook message\n" + HelmfileTemplateOutputTest.MANIFESTS;
+        binary(output, "", 0);
+        run(command("api", "staging").withOperation(HelmfileOperation.TEMPLATE));
+        PlatformTestUtil.waitWithEventsDispatching("Partial template viewer did not open", () -> !shown.isEmpty() && !notifications.isEmpty(), 10);
+        assertEquals(output, side(request(shown.getFirst().getRequests().getFirst()), 0));
+        assertEquals(NotificationType.WARNING, notifications.getLast().getType());
+        shown.clear(); notifications.clear();
+        binary("", "", 0);
+        var handler = new KillableColoredProcessHandler(new com.intellij.execution.configurations.GeneralCommandLine(executable.toString()));
+        var capture = new HelmfileTemplateRun(getProject(), command("api", "staging").withOperation(HelmfileOperation.TEMPLATE));
+        capture.onTextAvailable(new ProcessEvent(handler, "x".repeat(HelmfileTemplateRun.MAX_OUTPUT + 1)), ProcessOutputTypes.STDOUT);
+        capture.processTerminated(new ProcessEvent(handler, 0));
+        handler.startNotify();
+        PlatformTestUtil.waitWithEventsDispatching("Oversized template notification missing", () -> !notifications.isEmpty() && handler.isProcessTerminated(), 10);
+        assertEquals("Rendered manifests are too large", notifications.getLast().getTitle());
+        assertEmpty(shown);
+    }
+
     public void testApplyReviewsDiffAndContinuesExactlyOnceWithTheCapturedEnvironment() throws Exception {
         binary(MODIFIED, "", 2);
         Path calls = directory.resolve("calls");

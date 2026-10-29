@@ -24,6 +24,7 @@
         <additionalLibraryRootsProvider implementation="dev.helmfile.intellij.HelmfileChartLibraryProvider"/>
         <notificationGroup id="Helmfile repositories" displayType="BALLOON"/>
         <notificationGroup id="Helmfile diff" displayType="BALLOON"/>
+        <notificationGroup id="Helmfile template" displayType="BALLOON"/>
         <runLineMarkerContributor language="yaml" implementationClass="dev.helmfile.intellij.HelmfileReleaseLineMarkerContributor"/>
         <fileType name="Helmfile Template" language="Helmfile" implementationClass="dev.helmfile.intellij.HelmfileFileType"
                   fieldName="INSTANCE" fileNames="helmfile.yaml;helmfile.yml" extensions="gotmpl" patterns="_*.tpl"/>
