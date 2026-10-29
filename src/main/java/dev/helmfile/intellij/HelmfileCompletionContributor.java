@@ -20,9 +20,11 @@ public final class HelmfileCompletionContributor extends CompletionContributor i
             if (HelmfileRepositoryCompletion.complete(parameters, result)) return;
             List<String> context = HelmfileSchema.completionPath(file, offset);
             if (context == null) return;
+            HelmfileBlockCompletion.offer(context, text.substring(text.lastIndexOf('\n', Math.max(0, offset - 1)) + 1, offset), result);
             for (HelmfileSchema.Field field : HelmfileSchema.fields(context)) {
                 result.addElement(LookupElementBuilder.create(field, field.name()).withTypeText(field.type())
                         .withTailText("  " + field.description(), true).withInsertHandler((insertion, item) -> {
+                            if (HelmfileBlockCompletion.section(insertion, field.name())) return;
                             int tail = insertion.getTailOffset();
                             CharSequence chars = insertion.getDocument().getCharsSequence();
                             if (tail == chars.length() || chars.charAt(tail) != ':') {

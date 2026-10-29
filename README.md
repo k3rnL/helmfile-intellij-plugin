@@ -23,6 +23,7 @@ using **Settings → Plugins → ⚙ → Install Plugin from Disk**.
 
 | Feature | Try it |
 | --- | --- |
+| Insert complete blocks | Complete `releases`, `dependencies`, or `repositories`; use **Tab** to fill the generated fields. |
 | Complete YAML and Go templates | Press **Ctrl+Space** for Helmfile fields, state values, repositories, charts, and versions. |
 | Follow values and templates | **Ctrl+Click / Ctrl+B** goes to declarations; **Alt+F7** finds usages. Gutter arrows follow template inheritance in both directions. |
 | Open values files | **Ctrl+Click** a filename, including paths built from static state values and the selected environment. |

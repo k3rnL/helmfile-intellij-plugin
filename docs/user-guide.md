@@ -8,6 +8,16 @@ association under **Settings → Editor → File Types**.
 
 ## Editing
 
+Typing `{{` inserts `{{}}` with the caret inside; typing the closing braces moves over the inserted pair.
+This follows the IDE's **Insert paired brackets** preference.
+
+Complete `releases`, `repositories`, or a release's `dependencies` key to insert an editable block.
+For another list entry, type `- release`, `- repository`, or `- dependency` and choose that block
+from completion. **Tab** moves through the name, chart, version, or URL fields. Chart completion
+uses declared repositories and their indexes; the version field offers versions of the chosen chart
+and defaults to the newest cached version. Downloads remain in the background; invoke **Ctrl+Space**
+again if repository metadata is still loading. **Esc** leaves live-template editing.
+
 | Task | How |
 | --- | --- |
 | Complete Helmfile YAML fields | Press **Ctrl+Space** at a mapping key, including inside releases, chart dependencies (`chart`, `version`, `alias`), repositories, environments, hooks, and Helm defaults. |

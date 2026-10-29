@@ -46,7 +46,7 @@ public class HelmfileDependenciesCompletionTest extends BasePlatformTestCase {
         LookupElement dependency = Arrays.stream(myFixture.getLookupElements()).filter(item -> item.getLookupString().equals("dependencies")).findFirst().orElseThrow();
         myFixture.getLookup().setCurrentItem(dependency);
         myFixture.finishLookup(Lookup.NORMAL_SELECT_CHAR);
-        assertTrue(myFixture.getFile().getText().contains("    dependencies: \n"));
+        assertTrue(myFixture.getFile().getText(), myFixture.getFile().getText().contains("    dependencies:\n      - chart: "));
     }
     public void testDependencyEntryOffersItsOwnFields() {
         configure("dependencies:\n      - <caret>");
