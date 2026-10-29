@@ -7,6 +7,7 @@ import java.util.Map;
 
 /** One explicit environment; only diff can target the whole state. Arguments never pass through a shell. */
 record HelmfileCommand(String file, String release, String namespace, String environment, HelmfileOperation operation) {
+    HelmfileCommand withOperation(HelmfileOperation replacement) { return new HelmfileCommand(file, release, namespace, environment, replacement); }
     String problem() {
         if (file == null || file.isBlank()) return "Choose a Helmfile state file.";
         try {

@@ -16,6 +16,10 @@ import org.jetbrains.yaml.YAMLFileType;
 /** Native IDE diff window, including its standard file chooser and next/previous file actions. */
 final class HelmfileDiffViewer {
     static ChangeDiffRequestChain chain(Project project, HelmfileCommand command, HelmfileDiffOutput.Result result) {
+        return chain(project, command, result, List.of());
+    }
+    static ChangeDiffRequestChain chain(Project project, HelmfileCommand command, HelmfileDiffOutput.Result result,
+                                        List<com.intellij.openapi.actionSystem.AnAction> actions) {
         List<ChangeDiffRequestChain.Producer> files = new ArrayList<>();
         String title = "Helmfile diff: " + command.scope() + " [" + command.environment() + "]";
         StringBuilder before = new StringBuilder(), after = new StringBuilder();
@@ -23,7 +27,7 @@ final class HelmfileDiffViewer {
             append(before, resource.path(), resource.before(), resource.suppressed());
             append(after, resource.path(), resource.after(), resource.suppressed());
         }
-        files.add(new Producer(project, title, "All changes.yaml", before.toString(), after.toString(), FileStatus.MODIFIED, result.partial(), false));
+        files.add(new Producer(project, title, "All changes.yaml", before.toString(), after.toString(), FileStatus.MODIFIED, result.partial(), false, actions));
         Map<String, Integer> occurrences = new HashMap<>();
         for (var resource : result.resources()) {
             int occurrence = occurrences.merge(resource.path(), 1, Integer::sum);
@@ -34,7 +38,7 @@ final class HelmfileDiffViewer {
                 case DELETED -> FileStatus.DELETED;
                 default -> FileStatus.MODIFIED;
             };
-            files.add(new Producer(project, title, path, resource.before(), resource.after(), status, resource.partial(), resource.suppressed()));
+            files.add(new Producer(project, title, path, resource.before(), resource.after(), status, resource.partial(), resource.suppressed(), actions));
         }
         var chain = new ChangeDiffRequestChain(files, 0);
         chain.putUserData(DiffUserDataKeys.FORCE_READ_ONLY, true);
@@ -45,6 +49,9 @@ final class HelmfileDiffViewer {
     static void show(Project project, HelmfileCommand command, HelmfileDiffOutput.Result result) {
         DiffManager.getInstance().showDiff(project, chain(project, command, result), DiffDialogHints.DEFAULT);
     }
+    static void show(Project project, HelmfileCommand command, HelmfileDiffOutput.Result result, List<com.intellij.openapi.actionSystem.AnAction> actions) {
+        DiffManager.getInstance().showDiff(project, chain(project, command, result, actions), DiffDialogHints.DEFAULT);
+    }
     private static void append(StringBuilder target, String path, String text, boolean suppressed) {
         if (text.isEmpty() && !suppressed) return;
         if (!target.isEmpty()) target.append("---\n");
@@ -52,18 +59,23 @@ final class HelmfileDiffViewer {
         target.append(suppressed ? "# Changes suppressed by Helmfile configuration.\n" : text);
     }
     private record Producer(Project project, String title, String path, String before, String after, FileStatus status,
-                            boolean partial, boolean suppressed) implements ChangeDiffRequestChain.Producer {
+                            boolean partial, boolean suppressed, List<com.intellij.openapi.actionSystem.AnAction> actions) implements ChangeDiffRequestChain.Producer {
         @Override public @NotNull String getName() { return path; }
         @Override public @NotNull FilePath getFilePath() { return VcsUtil.getFilePath(path, false); }
         @Override public @NotNull FileStatus getFileStatus() { return status; }
         @Override public @NotNull DiffRequest process(@NotNull UserDataHolder context, @NotNull ProgressIndicator indicator) {
             indicator.checkCanceled();
-            if (suppressed) return new MessageDiffRequest(title + " — " + path, "Changes to this resource are suppressed by the Helmfile configuration.");
+            if (suppressed) {
+                var request = new MessageDiffRequest(title + " — " + path, "Changes to this resource are suppressed by the Helmfile configuration.");
+                request.putUserData(DiffUserDataKeys.CONTEXT_ACTIONS, actions);
+                return request;
+            }
             var factory = DiffContentFactory.getInstance();
             var request = new SimpleDiffRequest(title + " — " + path,
                     factory.create(project, before, YAMLFileType.YML), factory.create(project, after, YAMLFileType.YML),
                     "Deployed" + (partial ? " (partial output)" : ""), "Desired" + (partial ? " (partial output)" : ""));
             request.putUserData(DiffUserDataKeys.FORCE_READ_ONLY, true);
+            request.putUserData(DiffUserDataKeys.CONTEXT_ACTIONS, actions);
             request.putUserData(DiffUserDataKeys.GO_TO_SOURCE_DISABLE, true);
             return request;
         }

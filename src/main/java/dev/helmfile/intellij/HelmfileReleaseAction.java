@@ -41,6 +41,12 @@ public class HelmfileReleaseAction extends AnAction implements com.intellij.open
         run(project, command);
     }
     static void run(Project project, HelmfileCommand command) {
+        run(project, command, java.util.Map.of(), true, false);
+    }
+    static void runReviewed(Project project, HelmfileCommand command, java.util.Map<String, String> variables, boolean passParent) {
+        run(project, command, variables, passParent, true);
+    }
+    private static void run(Project project, HelmfileCommand command, java.util.Map<String, String> variables, boolean passParent, boolean reviewed) {
         // Use the standard run manager, so the configuration can be edited, saved, and rerun.
         RunManager manager = RunManager.getInstance(project);
         var type = ConfigurationTypeUtil.findConfigurationType(HelmfileRunConfigurationType.class);
@@ -51,6 +57,9 @@ public class HelmfileReleaseAction extends AnAction implements com.intellij.open
         configuration.namespace = command.namespace();
         configuration.environment = command.environment();
         configuration.operation = command.operation();
+        configuration.variables = new java.util.LinkedHashMap<>(variables);
+        configuration.passParentEnvironment = passParent;
+        configuration.reviewedApply = reviewed;
         FileDocumentManager.getInstance().saveAllDocuments();
         manager.setTemporaryConfiguration(settings);
         manager.setSelectedConfiguration(settings);

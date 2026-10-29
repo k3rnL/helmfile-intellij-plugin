@@ -21,6 +21,7 @@ public final class HelmfileRunConfiguration extends LocatableConfigurationBase<O
     HelmfileOperation operation = HelmfileOperation.TEMPLATE;
     Map<String, String> variables = new LinkedHashMap<>();
     boolean passParentEnvironment = true;
+    boolean reviewedApply;
 
     HelmfileRunConfiguration(Project project, ConfigurationFactory factory, String name) { super(project, factory, name); }
     HelmfileCommand command() { return new HelmfileCommand(stateFile, release, namespace, environment, operation); }
@@ -35,9 +36,11 @@ public final class HelmfileRunConfiguration extends LocatableConfigurationBase<O
         HelmfileCommand command = command();
         Map<String, String> env = Map.copyOf(variables);
         boolean inherit = passParentEnvironment;
+        var approval = new java.util.concurrent.atomic.AtomicBoolean(reviewedApply);
+        reviewedApply = false;
         return new CommandLineState(executionEnvironment) {
             @Override protected @NotNull ProcessHandler startProcess() throws ExecutionException {
-                return HelmfileExecution.start(getProject(), command, env, inherit);
+                return HelmfileExecution.start(getProject(), command, env, inherit, approval.getAndSet(false));
             }
         };
     }
@@ -66,6 +69,7 @@ public final class HelmfileRunConfiguration extends LocatableConfigurationBase<O
     @Override public HelmfileRunConfiguration clone() {
         HelmfileRunConfiguration copy = (HelmfileRunConfiguration) super.clone();
         copy.variables = new LinkedHashMap<>(variables);
+        copy.reviewedApply = false;
         return copy;
     }
 }

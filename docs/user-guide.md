@@ -218,6 +218,21 @@ Helmfile's CLI interactive prompt is disabled because the IDE handles environmen
 **Destroy** runs `destroy` to uninstall the release. Saved configurations using the old Delete action
 require choosing Destroy explicitly in **Run → Edit Configurations** before they can run.
 
+### Review and apply a release
+
+Choose **Apply Release…**, select the environment, and click **Review changes**. Helmfile runs a
+diff and opens the same native comparison described below. Review **All changes.yaml** or individual
+resources, then click **Apply reviewed changes** in the viewer's toolbar to continue. Closing the
+viewer leaves the release unchanged. No apply command starts without that click.
+
+The approval is used once, for the captured release, namespace, environment, and environment variables.
+Rerunning Apply starts another review. Editing project files or changing the state file makes the
+review stale; rerun Apply to refresh it. Failed, canceled, unreadable, or incomplete diffs cannot
+continue to Apply. When no changes are reported, there is nothing to apply.
+
+The second command is noninteractive `helmfile apply`, which runs Helmfile's own diff again before
+updating the release. Protected environments require confirmation before the review and before Apply.
+
 ### Review a Helmfile diff
 
 **Diff Release…** compares one release. **Helmfile: Diff All Releases…**, including the gutter

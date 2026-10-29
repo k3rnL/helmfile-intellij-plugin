@@ -54,7 +54,7 @@ final class HelmfileReleaseDialog extends DialogWrapper {
         namespace.getDocument().addDocumentListener(changed);
         ((JTextField) environments.getEditor().getEditorComponent()).getDocument().addDocumentListener(changed);
         setTitle(operation.label + (wholeState ? " Helmfile" : " Helmfile Release"));
-        setOKButtonText("Run " + operation.label);
+        setOKButtonText(operation == HelmfileOperation.APPLY ? "Review changes" : "Run " + operation.label);
         init();
         updatePreview();
     }
@@ -68,7 +68,8 @@ final class HelmfileReleaseDialog extends DialogWrapper {
         String problem = HelmfileExecution.protectionProblem(regex);
         protection.setText(problem != null ? problem : HelmfileExecution.protectedEnvironment(regex, command.environment())
                 ? "Protected environment — confirmation is required before execution." : " ");
-        preview.setText(command.commandLine(HelmfileSettings.get(project).executable(), Map.of(), true).getCommandLineString());
+        preview.setText((operation == HelmfileOperation.APPLY ? command.withOperation(HelmfileOperation.DIFF) : command)
+                .commandLine(HelmfileSettings.get(project).executable(), Map.of(), true).getCommandLineString());
     }
     @Override protected ValidationInfo doValidate() {
         if (!wholeState && release.getText().isBlank()) return new ValidationInfo("Enter the rendered release name.", release);

@@ -18,13 +18,18 @@ final class HelmfileExecution {
     static boolean protectedEnvironment(String regex, String environment) { return !regex.isEmpty() && Pattern.matches(regex, environment); }
 
     static ProcessHandler start(Project project, HelmfileCommand command, Map<String, String> variables, boolean passParent) throws ExecutionException {
+        return start(project, command, variables, passParent, false);
+    }
+    static ProcessHandler start(Project project, HelmfileCommand command, Map<String, String> variables, boolean passParent, boolean approvedApply) throws ExecutionException {
         String problem = command.problem();
         if (problem != null) throw new ExecutionException(problem);
         HelmfileSettings settings = HelmfileSettings.get(project);
         String regex = settings.protectedEnvironments();
         problem = protectionProblem(regex);
         if (problem != null) throw new ExecutionException(problem);
-        GeneralCommandLine line = command.commandLine(settings.executable(), variables, passParent);
+        boolean reviewing = command.operation() == HelmfileOperation.APPLY && !approvedApply;
+        HelmfileCommand executed = reviewing ? command.withOperation(HelmfileOperation.DIFF) : command;
+        GeneralCommandLine line = executed.commandLine(settings.executable(), variables, passParent);
         if (protectedEnvironment(regex, command.environment())) {
             AtomicBoolean confirmed = new AtomicBoolean();
             Runnable ask = () -> {
@@ -41,7 +46,12 @@ final class HelmfileExecution {
             if (!confirmed.get()) throw new com.intellij.openapi.progress.ProcessCanceledException();
         }
         if (project.isDisposed()) throw new com.intellij.openapi.progress.ProcessCanceledException();
-        HelmfileDiffRun diff = command.operation() == HelmfileOperation.DIFF ? new HelmfileDiffRun(project, command) : null;
+        HelmfileApplyReview review = null;
+        if (reviewing) {
+            try { review = new HelmfileApplyReview(project, command, variables, passParent); }
+            catch (java.io.IOException error) { throw new ExecutionException("Cannot read the Helmfile for review", error); }
+        }
+        HelmfileDiffRun diff = executed.operation() == HelmfileOperation.DIFF ? new HelmfileDiffRun(project, executed, review) : null;
         KillableColoredProcessHandler handler = new KillableColoredProcessHandler(line) {
             @Override protected void destroyProcessImpl() {
                 if (diff != null) diff.cancel();
@@ -53,8 +63,8 @@ final class HelmfileExecution {
             }
             @Override protected void notifyProcessTerminated(int exitCode) {
                 // With --detailed-exitcode, 2 means a successful diff which found changes.
-                if (command.operation() == HelmfileOperation.DIFF) putUserData(HelmfileDiffRun.EXIT_CODE, exitCode);
-                super.notifyProcessTerminated(command.operation() == HelmfileOperation.DIFF && exitCode == 2 ? 0 : exitCode);
+                if (executed.operation() == HelmfileOperation.DIFF) putUserData(HelmfileDiffRun.EXIT_CODE, exitCode);
+                super.notifyProcessTerminated(executed.operation() == HelmfileOperation.DIFF && exitCode == 2 ? 0 : exitCode);
             }
         };
         if (diff != null) handler.addProcessListener(diff);

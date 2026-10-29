@@ -125,7 +125,7 @@ public class HelmfileExecutionTest extends BasePlatformTestCase {
         TestDialogManager.setTestDialog(message -> { confirmations.incrementAndGet(); return Messages.YES; }, getTestRootDisposable());
         for (HelmfileOperation operation : HelmfileOperation.values()) {
             ProcessOutput output = finish(HelmfileExecution.start(getProject(), command("prod-eu", operation), Map.of(), true));
-            assertTrue(output.getStdout(), output.getStdout().contains("arg=" + operation.command() + "\n"));
+            assertTrue(output.getStdout(), output.getStdout().contains("arg=" + (operation == HelmfileOperation.APPLY ? "diff" : operation.command()) + "\n"));
             assertEquals(0, output.getExitCode());
         }
         finish(HelmfileExecution.start(getProject(), command("prod-eu", HelmfileOperation.TEMPLATE), Map.of(), true));
@@ -181,9 +181,29 @@ public class HelmfileExecutionTest extends BasePlatformTestCase {
         copy.variables.put("KUBECONFIG", "/different");
         assertEquals("/a:/b", original.variables.get("KUBECONFIG"));
         // An unknown serialized operation must fail closed, not fall back to apply or destroy.
-        xml.getChild("helmfile").setAttribute("operation", "SOMETHING_ELSE");
-        restored.readExternal(xml);
-        assertThrows(RuntimeConfigurationError.class, restored::checkConfiguration);
+        for (String removed : List.of("SOMETHING_ELSE", "DELETE")) {
+            xml.getChild("helmfile").setAttribute("operation", removed);
+            restored.readExternal(xml);
+            assertThrows(RuntimeConfigurationError.class, restored::checkConfiguration);
+        }
+    }
+    public void testReviewedApprovalIsNotPersistedClonedOrReusedOnRerun() throws Exception {
+        HelmfileRunConfiguration configuration = configuration();
+        configuration.environment = "quality";
+        configuration.operation = HelmfileOperation.APPLY;
+        configuration.reviewedApply = true;
+        assertFalse(configuration.clone().reviewedApply);
+        Element xml = new Element("configuration"); configuration.writeExternal(xml);
+        var restored = configuration(); restored.readExternal(xml); assertFalse(restored.reviewedApply);
+        var executor = DefaultRunExecutor.getRunExecutorInstance();
+        ProgramRunner<?> runner = ProgramRunner.getRunner(executor.getId(), configuration);
+        var environment = ExecutionEnvironmentBuilder.create(getProject(), executor, configuration).build();
+        CommandLineState runState = (CommandLineState) configuration.getState(executor, environment);
+        for (String expected : List.of("apply", "diff")) {
+            ExecutionResult result = runState.execute(executor, runner);
+            try { assertTrue(finish(result.getProcessHandler()).getStdout().contains("arg=" + expected + "\n")); }
+            finally { if (result.getExecutionConsole() != null) Disposer.dispose(result.getExecutionConsole()); }
+        }
     }
     public void testReleaseGutterAndContextIgnoreTemplatesAndNestedNameFields() {
         PsiFile file = myFixture.addFileToProject("helmfile.yaml.gotmpl", """

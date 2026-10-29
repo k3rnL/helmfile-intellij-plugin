@@ -14,10 +14,12 @@ final class HelmfileDiffRun implements ProcessListener {
     static final Key<Integer> EXIT_CODE = Key.create("Helmfile.diff.exitCode");
     private final Project project;
     private final HelmfileCommand command;
+    private final HelmfileApplyReview review;
     private final StringBuilder output = new StringBuilder();
     private boolean overflow;
     private volatile boolean cancelled;
-    HelmfileDiffRun(Project project, HelmfileCommand command) { this.project = project; this.command = command; }
+    HelmfileDiffRun(Project project, HelmfileCommand command) { this(project, command, null); }
+    HelmfileDiffRun(Project project, HelmfileCommand command, HelmfileApplyReview review) { this.project = project; this.command = command; this.review = review; }
     void cancel() { cancelled = true; }
     @Override public synchronized void onTextAvailable(@NotNull ProcessEvent event, @NotNull Key outputType) {
         if (!ProcessOutputType.isStdout(outputType) || overflow) return;
@@ -49,7 +51,8 @@ final class HelmfileDiffRun implements ProcessListener {
                 }
                 if (result.partial()) showNotification("Helmfile diff contains incomplete output",
                         "Some context is omitted or output could not be parsed. Partial comparisons are labeled; review the Run console too.", NotificationType.WARNING);
-                HelmfileDiffViewer.show(project, command, result);
+                HelmfileDiffViewer.show(project, command, result,
+                        review != null && !result.partial() ? java.util.List.of(review.action()) : java.util.List.of());
             }
         };
         ApplicationManager.getApplication().invokeLater(() -> { if (!project.isDisposed() && !cancelled) task.queue(); });

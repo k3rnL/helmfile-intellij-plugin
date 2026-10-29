@@ -82,6 +82,58 @@ public class HelmfileDiffTest extends BasePlatformTestCase {
         return (SimpleDiffRequest) producer.process(new UserDataHolderBase(), new EmptyProgressIndicator());
     }
     private String side(SimpleDiffRequest request, int side) { return ((DocumentContent) request.getContents().get(side)).getDocument().getText(); }
+    private com.intellij.openapi.actionSystem.AnActionEvent event(com.intellij.openapi.actionSystem.AnAction action) {
+        return com.intellij.openapi.actionSystem.AnActionEvent.createEvent(action,
+                com.intellij.openapi.actionSystem.impl.SimpleDataContext.getProjectContext(getProject()), null, "test",
+                com.intellij.openapi.actionSystem.ActionUiKind.NONE, null);
+    }
+
+    public void testApplyReviewsDiffAndContinuesExactlyOnceWithTheCapturedEnvironment() throws Exception {
+        binary(MODIFIED, "", 2);
+        Path calls = directory.resolve("calls");
+        Files.writeString(executable, Files.readString(executable).replace("#!/bin/sh\n", "#!/bin/sh\nprintf '%s\\n' \"$@\" >> '" + calls + "'\nprintf 'kubeconfig=%s\\n' \"$KUBECONFIG\" >> '" + calls + "'\ncase \" $* \" in *' apply '*) exit 0;; esac\n"));
+        HelmfileCommand apply = command("api", "staging").withOperation(HelmfileOperation.APPLY);
+        ProcessHandler preview = HelmfileExecution.start(getProject(), apply, Map.of("KUBECONFIG", "/first:/second"), false);
+        preview.startNotify();
+        PlatformTestUtil.waitWithEventsDispatching("Apply diff did not open", () -> !shown.isEmpty(), 10);
+        assertFalse(Files.readString(calls).contains("\napply\n"));
+        var action = request(shown.getFirst().getRequests().getFirst()).getUserData(DiffUserDataKeys.CONTEXT_ACTIONS).getFirst();
+        assertEquals("Apply reviewed changes", action.getTemplatePresentation().getText());
+        assertSame(action, request(shown.getFirst().getRequests().get(1)).getUserData(DiffUserDataKeys.CONTEXT_ACTIONS).getFirst());
+        var event = event(action);
+        action.update(event); assertTrue(event.getPresentation().isEnabled());
+        List<ProcessHandler> processes = new ArrayList<>();
+        getProject().getMessageBus().connect(getTestRootDisposable()).subscribe(com.intellij.execution.ExecutionManager.EXECUTION_TOPIC,
+                new com.intellij.execution.ExecutionListener() {
+                    @Override public void processStarted(String executorId, com.intellij.execution.runners.ExecutionEnvironment environment, ProcessHandler handler) { processes.add(handler); }
+                });
+        action.actionPerformed(event);
+        PlatformTestUtil.waitWithEventsDispatching("Approved apply did not run", () -> !processes.isEmpty() && processes.getFirst().isProcessTerminated(), 15);
+        String executed = Files.readString(calls);
+        assertTrue(executed, executed.contains("\napply\n"));
+        assertTrue(executed, executed.contains("kubeconfig=/first:/second"));
+        var configuration = (HelmfileRunConfiguration) com.intellij.execution.RunManager.getInstance(getProject()).getSelectedConfiguration().getConfiguration();
+        assertEquals(apply, configuration.command());
+        assertFalse(configuration.passParentEnvironment);
+        action.actionPerformed(event);
+        assertEquals(executed, Files.readString(calls));
+        action.update(event); assertFalse(event.getPresentation().isEnabled());
+    }
+    public void testApplyCannotContinueFromPartialOutputOrAChangedStateFile() throws Exception {
+        binary("unrecognized hook output\n" + MODIFIED, "", 2);
+        run(command("api", "staging").withOperation(HelmfileOperation.APPLY));
+        PlatformTestUtil.waitWithEventsDispatching("Partial diff did not open", () -> !shown.isEmpty(), 10);
+        assertEmpty(request(shown.getFirst().getRequests().getFirst()).getUserData(DiffUserDataKeys.CONTEXT_ACTIONS));
+        shown.clear();
+        binary(MODIFIED, "", 2);
+        run(command("api", "staging").withOperation(HelmfileOperation.APPLY));
+        PlatformTestUtil.waitWithEventsDispatching("Diff did not open", () -> !shown.isEmpty(), 10);
+        var action = request(shown.getFirst().getRequests().getFirst()).getUserData(DiffUserDataKeys.CONTEXT_ACTIONS).getFirst();
+        Files.setLastModifiedTime(state, java.nio.file.attribute.FileTime.fromMillis(Files.getLastModifiedTime(state).toMillis() + 5_000));
+        var event = event(action); action.update(event);
+        assertFalse(event.getPresentation().isEnabled());
+        assertTrue(event.getPresentation().getDescription().contains("no longer current"));
+    }
 
     public void testFullContextReconstructsDeployedAndDesiredYaml() {
         var result = HelmfileDiffOutput.parse(MODIFIED);
