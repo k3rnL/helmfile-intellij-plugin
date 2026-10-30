@@ -98,9 +98,10 @@ public class HelmfileDiffTest extends BasePlatformTestCase {
         assertEquals("All manifests.yaml", chain.getRequests().getFirst().getName());
         assertEquals("staging/ConfigMap/api.yaml", chain.getRequests().get(1).getName());
         var all = request(chain.getRequests().getFirst());
-        assertSize(1, all.getContents());
-        assertEquals(HelmfileTemplateOutputTest.MANIFESTS, side(all, 0));
-        assertEquals(YAMLFileType.YML, all.getContents().getFirst().getContentType());
+        assertSize(2, all.getContents());
+        assertInstanceOf(all.getContents().getFirst(), com.intellij.diff.contents.EmptyContent.class);
+        assertEquals(HelmfileTemplateOutputTest.MANIFESTS, side(all, 1));
+        assertEquals(YAMLFileType.YML, all.getContents().getLast().getContentType());
         assertEquals(Boolean.TRUE, all.getUserData(DiffUserDataKeys.FORCE_READ_ONLY));
         assertEquals(Boolean.TRUE, chain.getUserData(DiffUserDataKeys.GO_TO_SOURCE_DISABLE));
         assertTrue(request(chain.getRequests().get(1)).getTitle().contains("[staging]"));
@@ -140,7 +141,7 @@ public class HelmfileDiffTest extends BasePlatformTestCase {
         binary(output, "", 0);
         run(command("api", "staging").withOperation(HelmfileOperation.TEMPLATE));
         PlatformTestUtil.waitWithEventsDispatching("Partial template viewer did not open", () -> !shown.isEmpty() && !notifications.isEmpty(), 10);
-        assertEquals(output, side(request(shown.getFirst().getRequests().getFirst()), 0));
+        assertEquals(output, side(request(shown.getFirst().getRequests().getFirst()), 1));
         assertEquals(NotificationType.WARNING, notifications.getLast().getType());
         shown.clear(); notifications.clear();
         binary("", "", 0);

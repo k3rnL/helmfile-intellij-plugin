@@ -35,8 +35,11 @@ final class HelmfileTemplateViewer {
         @Override public @NotNull FileStatus getFileStatus() { return FileStatus.NOT_CHANGED; }
         @Override public @NotNull DiffRequest process(@NotNull UserDataHolder context, @NotNull ProgressIndicator indicator) {
             indicator.checkCanceled();
-            var content = DiffContentFactory.getInstance().create(project, text, YAMLFileType.YML);
-            var request = new SimpleDiffRequest(title + " — " + path, List.of(content), List.of("Rendered manifest"));
+            var factory = DiffContentFactory.getInstance();
+            // IntelliJ's one-pane viewer still requires two content slots, one of them EmptyContent.
+            // A request with a single slot is rejected by every built-in text diff tool.
+            var content = factory.create(project, text, YAMLFileType.YML);
+            var request = new SimpleDiffRequest(title + " — " + path, factory.createEmpty(), content, null, "Rendered manifest");
             request.putUserData(DiffUserDataKeys.FORCE_READ_ONLY, true);
             request.putUserData(DiffUserDataKeys.GO_TO_SOURCE_DISABLE, true);
             return request;
