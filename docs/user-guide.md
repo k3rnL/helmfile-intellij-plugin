@@ -39,7 +39,7 @@ again if repository metadata is still loading. **Esc** leaves live-template edit
 | Select an environment | Click its gutter button under `environments`, or use **Tools → Helmfile: Select Environment** through the menu or **Find Action**. |
 | Run a release | Click the run icon beside its `name`, or right-click inside the release and choose **Helmfile → Template / Apply / Destroy Release…**. |
 | Diff a release | Click its run icon and choose **Diff Release…** to compare deployed and desired YAML in IntelliJ's diff viewer. |
-| Diff the whole Helmfile | Click the run icon beside `releases:`, or use **Tools → Helmfile: Diff All Releases…**. Also available in the editor's Helmfile context menu and Find Action. |
+| Run the whole Helmfile | Click the run icon beside `releases:` for **Template / Diff / Apply / Destroy All Releases…**. These actions are also available in the editor's Helmfile context menu and Find Action. |
 | Customize syntax colors | **Settings → Editor → Color Scheme → Helmfile**. |
 
 Shortcuts above use the default Windows/Linux keymap; macOS and custom keymaps differ.
@@ -204,6 +204,11 @@ in **Settings → Tools → Helmfile**. The default executable is `helmfile` fro
    For a templated release name, enter its rendered name for the selected environment.
 4. Follow output in IntelliJ's **Run** tool window. Its standard controls stop or rerun the command.
 
+To run the same commands for the whole state, use the play icon beside **`releases:`** and choose
+an **All Releases…** action. Its dialog explicitly shows the scope and environment. Apply reviews
+the full manifest diff before offering **Apply reviewed changes**; Destroy uninstalls all releases
+selected by Helmfile's state and nested-state rules. Environment protection applies to every action.
+
 The action creates a temporary **Helmfile** run configuration. Use **Run → Edit Configurations**
 to save it, change its environment or command, or set environment variables. Each configuration
 remembers its own execution environment, independently of the editor's completion environment.
@@ -211,10 +216,11 @@ The process inherits the IDE's environment by default, including the complete `K
 the plugin does not parse or choose kubeconfig files. Per-configuration environment variables use
 IntelliJ's standard environment variables editor.
 
-Commands use `--file <state> --environment <environment> --selector name=<release>` and execute
+Release commands use `--file <state> --environment <environment> --selector name=<release>` and execute
 in the state file's directory. A namespace adds `,namespace=<namespace>` to the selector, without
 overriding the release namespace. Use it when the same name occurs in multiple namespaces.
-Helmfile's normal selector and nested-state rules apply. Arguments are passed directly to the executable.
+Whole-state commands omit `--selector`. Helmfile's normal selector and nested-state rules apply.
+Arguments are passed directly to the executable.
 Helmfile's CLI interactive prompt is disabled because the IDE handles environment confirmation.
 **Destroy** runs `destroy` to uninstall the release. Saved configurations using the old Delete action
 require choosing Destroy explicitly in **Run → Edit Configurations** before they can run.
@@ -256,7 +262,8 @@ updating the release. Protected environments require confirmation before the rev
 **Diff Release…** compares one release. **Helmfile: Diff All Releases…**, including the gutter
 beside `releases:`, compares the entire state with its nested Helmfiles. Both actions let you choose
 the environment and create a normal Helmfile run configuration. For a saved **Diff** configuration,
-an empty release name means all releases; other commands still require an exact release name.
+an empty release name means all releases. This scope is also supported by saved Template, Apply,
+and Destroy configurations; enter an exact release name to target a single release.
 Protected environments require the same extra confirmation on every run and rerun.
 
 Install the [helm-diff plugin](https://github.com/databus23/helm-diff) alongside Helmfile and Helm.

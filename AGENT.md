@@ -139,6 +139,8 @@ or inventing an empty follow-up version. Attach every created pull request to th
   collections when IntelliJ can collect references concurrently.
 - Execution inherits the complete `KUBECONFIG`; do not parse it or choose one config file. The IDE
   confirms protected environments on every run and rerun. Default protection is the full-match regex `prod.*`.
+- Template, diff, apply, and destroy support both an exact release selector and an explicit whole-state
+  scope without selectors. A single-release dialog must still require a rendered release name.
 - Diff uses Helm's standard text renderer with full context, disables external `HELM_DIFF_TOOL`,
   treats detailed exit code 2 as changes, and limits captured output to 32 MiB. Preserve Secret redaction.
 - Apply runs that diff first. Only a complete review can approve the captured command once;

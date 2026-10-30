@@ -90,7 +90,7 @@ public class HelmfileReleaseGutterTest extends BasePlatformTestCase {
         for (int pass = 0; pass < 3; pass++) {
             com.intellij.codeInsight.daemon.DaemonCodeAnalyzer.getInstance(getProject()).restart();
             var gutters = myFixture.findAllGutters();
-            for (String tooltip : java.util.List.of("Run Helmfile for this release", "Diff all Helmfile releases",
+            for (String tooltip : java.util.List.of("Run Helmfile for this release", "Run Helmfile for all releases",
                     "Go to parent Helmfile template", "Go to inheriting Helmfile releases or templates")) {
                 assertEquals("Pass " + pass + ": " + tooltip, 1, gutters.stream().filter(gutter -> tooltip.equals(gutter.getTooltipText())).count());
             }

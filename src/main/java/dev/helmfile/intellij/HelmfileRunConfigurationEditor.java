@@ -75,7 +75,7 @@ final class HelmfileRunConfigurationEditor extends SettingsEditor<HelmfileRunCon
     @Override protected @NotNull JComponent createEditor() {
         return FormBuilder.createFormBuilder().addLabeledComponent("State file:", file)
                 .addLabeledComponent("Release name:", release)
-                .addTooltip("For Diff only, leave empty to compare all releases in the Helmfile.")
+                .addTooltip("Leave empty to run the selected command for all releases in the Helmfile.")
                 .addLabeledComponent("Namespace selector (optional):", namespace)
                 .addLabeledComponent("Environment:", environment).addLabeledComponent("Command:", operation)
                 .addComponent(variables)

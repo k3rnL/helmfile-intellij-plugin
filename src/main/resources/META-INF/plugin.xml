@@ -52,6 +52,9 @@
         </intentionAction>
     </extensions>
     <actions>
+        <action id="Helmfile.Template" class="dev.helmfile.intellij.HelmfileStateAction$Template" text="Helmfile: Template All Releases…"/>
+        <action id="Helmfile.Apply" class="dev.helmfile.intellij.HelmfileStateAction$Apply" text="Helmfile: Apply All Releases…"/>
+        <action id="Helmfile.Destroy" class="dev.helmfile.intellij.HelmfileStateAction$Destroy" text="Helmfile: Destroy All Releases…"/>
         <action id="Helmfile.Diff" class="dev.helmfile.intellij.HelmfileDiffAction" text="Helmfile: Diff All Releases…"
                 description="Compare deployed and desired manifests for the whole Helmfile in the IDE diff viewer">
             <add-to-group group-id="ToolsMenu" anchor="last"/>
@@ -63,7 +66,10 @@
             <action id="Helmfile.Release.Apply" class="dev.helmfile.intellij.HelmfileReleaseAction$Apply" text="Apply Release…"/>
             <action id="Helmfile.Release.Destroy" class="dev.helmfile.intellij.HelmfileReleaseAction$Destroy" text="Destroy Release…"/>
             <separator/>
+            <reference ref="Helmfile.Template"/>
             <reference ref="Helmfile.Diff"/>
+            <reference ref="Helmfile.Apply"/>
+            <reference ref="Helmfile.Destroy"/>
         </group>
         <action id="Helmfile.SelectEnvironment" class="dev.helmfile.intellij.SelectEnvironmentAction"
                 text="Helmfile: Select Environment" description="Select the Helmfile environment used for values completion and navigation">

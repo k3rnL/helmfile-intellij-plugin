@@ -10,14 +10,16 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.yaml.psi.YAMLKeyValue;
 
 public final class HelmfileReleaseLineMarkerContributor extends RunLineMarkerContributor implements com.intellij.openapi.project.DumbAware {
-    private static final AnAction DIFF_ALL = new HelmfileDiffAction();
+    // Reuse file-wide actions so the IDE can recognize unchanged markers across analysis passes.
+    private static final AnAction[] STATE_ACTIONS = {new HelmfileStateAction.Template(), new HelmfileDiffAction(),
+            new HelmfileStateAction.Apply(), new HelmfileStateAction.Destroy()};
     @Override public Info getInfo(@NotNull PsiElement element) {
         if (element.getFirstChild() != null) return null;
         YAMLKeyValue name = PsiTreeUtil.getParentOfType(element, YAMLKeyValue.class);
         if (name != null && name.getKeyText().equals("releases") && HelmfileSchema.ancestors(name).isEmpty()
                 && HelmfileValues.supported(name.getContainingFile()) && name.getKey() != null
                 && PsiTreeUtil.getDeepestFirst(name.getKey()) == element) {
-            return new Info(AllIcons.RunConfigurations.TestState.Run, new AnAction[]{DIFF_ALL}, ignored -> "Diff all Helmfile releases");
+            return new Info(AllIcons.RunConfigurations.TestState.Run, STATE_ACTIONS, ignored -> "Run Helmfile for all releases");
         }
         // Template-only names may have no YAML value; the key is always a stable leaf anchor.
         if (name == null || !HelmfileReleaseTarget.isRelease(name) || name.getKey() == null

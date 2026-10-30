@@ -32,6 +32,7 @@ using **Settings → Plugins → ⚙ → Install Plugin from Disk**.
 | Find repository usages | **Ctrl+Click** a repository's declared name to see the charts that use it. |
 | Switch environments | Click the gutter button beside an environment, or use **Tools → Helmfile: Select Environment**. The current environment has a check mark. |
 | Run a release | Click the play icon beside its name for **Template**, **Diff**, **Apply**, or **Destroy**. |
+| Run the whole Helmfile | The play icon beside `releases:` offers the same four actions for all releases. |
 | Browse rendered manifests | **Template** opens a read-only YAML preview with an all-manifests view and individual resources. |
 | Review deployment changes | Diff one release or the whole Helmfile in the IDE's diff viewer, including individual resources. |
 | Review before applying | **Apply** opens the diff first; **Apply reviewed changes** continues the deployment. |

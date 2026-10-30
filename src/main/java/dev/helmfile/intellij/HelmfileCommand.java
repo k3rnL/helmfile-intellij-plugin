@@ -5,7 +5,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
 import java.util.Map;
 
-/** One explicit environment; only diff can target the whole state. Arguments never pass through a shell. */
+/** One explicit environment and release scope. Arguments never pass through a shell. */
 record HelmfileCommand(String file, String release, String namespace, String environment, HelmfileOperation operation) {
     HelmfileCommand withOperation(HelmfileOperation replacement) { return new HelmfileCommand(file, release, namespace, environment, replacement); }
     String problem() {
@@ -16,12 +16,12 @@ record HelmfileCommand(String file, String release, String namespace, String env
         // Commas and operators have selector semantics, even without a shell.
         if (release == null || !wholeState() && !release.matches("[A-Za-z0-9][A-Za-z0-9_.-]*")) return "Enter the rendered release name (letters, numbers, '.', '_' or '-').";
         if (namespace == null || !namespace.isEmpty() && !namespace.matches("[A-Za-z0-9][A-Za-z0-9_.-]*")) return "Enter a literal namespace or leave it empty.";
-        if (wholeState() && !namespace.isEmpty()) return "A full Helmfile diff cannot have a release namespace selector.";
+        if (wholeState() && !namespace.isEmpty()) return "A full Helmfile command cannot have a release namespace selector.";
         if (environment == null || environment.isBlank() || !environment.equals(environment.strip()) || environment.chars().anyMatch(Character::isISOControl)) return "Enter an environment name without surrounding whitespace or control characters.";
         if (operation == null) return "Choose a Helmfile command.";
         return null;
     }
-    boolean wholeState() { return operation == HelmfileOperation.DIFF && "".equals(release); }
+    boolean wholeState() { return "".equals(release); }
     String selector() { return wholeState() ? "" : "name=" + release + (namespace.isEmpty() ? "" : ",namespace=" + namespace); }
     String scope() { return wholeState() ? "All releases" : selector(); }
     GeneralCommandLine commandLine(String executable, Map<String, String> variables, boolean passParent) {
@@ -38,7 +38,7 @@ record HelmfileCommand(String file, String release, String namespace, String env
             line.addParameters("--no-color", "diff", "--context", "-1", "--output", "diff", "--detailed-exitcode", "--concurrency", "1");
             line.withEnvironment("HELM_DIFF_COLOR", "false").withEnvironment("HELM_DIFF_OUTPUT_CONTEXT", "-1")
                     .withEnvironment("HELM_DIFF_TOOL", "");
-        } else if (operation == HelmfileOperation.TEMPLATE) line.addParameters("--no-color", "template");
+        } else if (operation == HelmfileOperation.TEMPLATE) line.addParameters("--no-color", "template", "--concurrency", "1");
         else line.addParameter(operation.command());
         return line;
     }

@@ -29,6 +29,9 @@ final class HelmfileReleaseDialog extends DialogWrapper {
     HelmfileReleaseDialog(PsiFile file) {
         this(file, null, HelmfileOperation.DIFF);
     }
+    HelmfileReleaseDialog(PsiFile file, HelmfileOperation operation) {
+        this(file, null, operation);
+    }
     private HelmfileReleaseDialog(PsiFile state, YAMLKeyValue declaration, HelmfileOperation operation) {
         super(state.getProject());
         project = state.getProject();

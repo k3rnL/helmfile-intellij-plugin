@@ -202,6 +202,28 @@ public class HelmfileDiffTest extends BasePlatformTestCase {
         assertFalse(event.getPresentation().isEnabled());
         assertTrue(event.getPresentation().getDescription().contains("no longer current"));
     }
+    public void testWholeStateApplyKeepsTheUnfilteredScopeAfterReview() throws Exception {
+        binary(MODIFIED, "", 2);
+        Path calls = directory.resolve("calls");
+        Files.writeString(executable, Files.readString(executable).replace("#!/bin/sh\n", "#!/bin/sh\nprintf '%s\\n' \"$@\" >> '" + calls + "'\ncase \" $* \" in *' apply '*) exit 0;; esac\n"));
+        run(command("", "staging").withOperation(HelmfileOperation.APPLY));
+        PlatformTestUtil.waitWithEventsDispatching("Whole-state review did not open", () -> !shown.isEmpty(), 10);
+        var action = request(shown.getFirst().getRequests().getFirst()).getUserData(DiffUserDataKeys.CONTEXT_ACTIONS).getFirst();
+        List<ProcessHandler> processes = new ArrayList<>();
+        getProject().getMessageBus().connect(getTestRootDisposable()).subscribe(com.intellij.execution.ExecutionManager.EXECUTION_TOPIC,
+                new com.intellij.execution.ExecutionListener() {
+                    @Override public void processStarted(String executorId, com.intellij.execution.runners.ExecutionEnvironment environment, ProcessHandler handler) { processes.add(handler); }
+                });
+        action.actionPerformed(event(action));
+        PlatformTestUtil.waitWithEventsDispatching("Whole-state apply did not finish", () -> !processes.isEmpty() && processes.getFirst().isProcessTerminated(), 15);
+        String executed = Files.readString(calls);
+        assertTrue(executed, executed.contains("\ndiff\n"));
+        assertTrue(executed, executed.contains("\napply\n"));
+        assertFalse(executed, executed.contains("--selector"));
+        var configuration = (HelmfileRunConfiguration) com.intellij.execution.RunManager.getInstance(getProject()).getSelectedConfiguration().getConfiguration();
+        assertTrue(configuration.command().wholeState());
+        assertEquals(HelmfileOperation.APPLY, configuration.command().operation());
+    }
 
     public void testFullContextReconstructsDeployedAndDesiredYaml() {
         var result = HelmfileDiffOutput.parse(MODIFIED);
@@ -288,8 +310,11 @@ public class HelmfileDiffTest extends BasePlatformTestCase {
         assertTrue(args.getParametersList().getList().containsAll(List.of("--context", "-1", "--output", "diff", "--detailed-exitcode")));
         assertEquals("name=api", command("api", "staging").selector());
         assertNotNull(new HelmfileCommand(state.toString(), "", "ns", "staging", HelmfileOperation.DIFF).problem());
-        for (var operation : HelmfileOperation.values()) if (operation != HelmfileOperation.DIFF)
-            assertNotNull(new HelmfileCommand(state.toString(), "", "", "staging", operation).problem());
+        for (var operation : HelmfileOperation.values()) {
+            var all = new HelmfileCommand(state.toString(), "", "", "staging", operation);
+            assertNull(all.problem());
+            assertFalse(all.commandLine("helmfile", Map.of(), true).getParametersList().getList().contains("--selector"));
+        }
     }
     public void testExitTwoOpensNativeDiffAndKeepsRunSuccessfulWhileIgnoringStderr() throws Exception {
         binary(MODIFIED, "error log\nstaging, fake, Secret (v1) has been added:\n+ secret\n", 2);
@@ -335,14 +360,17 @@ public class HelmfileDiffTest extends BasePlatformTestCase {
         assertEquals(NotificationType.WARNING, notifications.getLast().getType());
         assertTrue(shown.isEmpty());
     }
-    public void testProtectedFullStateDiffConfirmsScopeAndCanBeCancelled() {
+    public void testEveryProtectedFullStateCommandConfirmsScopeAndCanBeCancelled() {
+        var confirmations = new java.util.concurrent.atomic.AtomicInteger();
         TestDialogManager.setTestDialog(message -> {
             assertTrue(message, message.contains("All releases"));
             assertTrue(message, message.contains("production"));
+            confirmations.incrementAndGet();
             return Messages.NO;
         }, getTestRootDisposable());
-        assertThrows(com.intellij.openapi.progress.ProcessCanceledException.class, () ->
-                HelmfileExecution.start(getProject(), command("", "production"), Map.of(), true));
+        for (var operation : HelmfileOperation.values()) assertThrows(com.intellij.openapi.progress.ProcessCanceledException.class, () ->
+                HelmfileExecution.start(getProject(), command("", "production").withOperation(operation), Map.of(), true));
+        assertEquals(4, confirmations.get());
         assertFalse(Files.exists(executable));
     }
     public void testFullStateDialogHasEnvironmentsAndReleaseDialogStillRequiresRenderedName() {
@@ -357,7 +385,7 @@ public class HelmfileDiffTest extends BasePlatformTestCase {
         var release = new HelmfileReleaseDialog(name, HelmfileOperation.DIFF);
         try { assertNotNull(release.doValidate()); }
         finally { Disposer.dispose(release.getDisposable()); }
-        assertTrue(myFixture.findAllGutters().stream().anyMatch(gutter -> "Diff all Helmfile releases".equals(gutter.getTooltipText())));
+        assertTrue(myFixture.findAllGutters().stream().anyMatch(gutter -> "Run Helmfile for all releases".equals(gutter.getTooltipText())));
         List<com.intellij.openapi.actionSystem.AnAction> actions = new ArrayList<>();
         com.intellij.psi.util.PsiTreeUtil.processElements(HelmfileValues.yaml(file), element -> {
             var marker = new HelmfileReleaseLineMarkerContributor().getInfo(element);
@@ -366,5 +394,19 @@ public class HelmfileDiffTest extends BasePlatformTestCase {
         });
         assertTrue(actions.stream().anyMatch(action -> action instanceof HelmfileDiffAction
                 && "Diff All Releases…".equals(action.getTemplatePresentation().getText())));
+        var rootActions = actions.stream().filter(action -> action instanceof HelmfileStateAction).toList();
+        assertEquals(List.of("Template All Releases…", "Diff All Releases…", "Apply All Releases…", "Destroy All Releases…"),
+                rootActions.stream().map(action -> action.getTemplatePresentation().getText()).toList());
+        assertEquals(4, rootActions.stream().map(action -> action.getTemplatePresentation().getIcon()).distinct().count());
+        for (var operation : HelmfileOperation.values()) {
+            var full = new HelmfileReleaseDialog(file, operation);
+            try {
+                var configured = full.command();
+                // The fixture's editor file is in the in-memory VFS; validate its options with a real state path.
+                assertNull(new HelmfileCommand(state.toString(), configured.release(), configured.namespace(), configured.environment(), operation).problem());
+                assertTrue(full.command().wholeState());
+                assertEquals(operation, full.command().operation());
+            } finally { Disposer.dispose(full.getDisposable()); }
+        }
     }
 }

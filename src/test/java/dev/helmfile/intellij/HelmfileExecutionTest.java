@@ -74,7 +74,7 @@ public class HelmfileExecutionTest extends BasePlatformTestCase {
             GeneralCommandLine line = command.commandLine(executable.toString(), Map.of(), true);
             var expected = new ArrayList<>(List.of("--file", state.toString(), "--environment", "quality", "--selector", "name=api", "--interactive=false"));
             if (operation == HelmfileOperation.DIFF) expected.addAll(List.of("--no-color", "diff", "--context", "-1", "--output", "diff", "--detailed-exitcode", "--concurrency", "1"));
-            else if (operation == HelmfileOperation.TEMPLATE) expected.addAll(List.of("--no-color", "template"));
+            else if (operation == HelmfileOperation.TEMPLATE) expected.addAll(List.of("--no-color", "template", "--concurrency", "1"));
             else expected.add(operation.command());
             assertEquals(expected, line.getParametersList().getList());
             assertEquals(directory.toFile(), line.getWorkDirectory());
@@ -84,7 +84,7 @@ public class HelmfileExecutionTest extends BasePlatformTestCase {
         assertEquals("name=api,namespace=quality", scoped.selector());
     }
     public void testSelectorOperatorsAndTemplatesCannotExpandTheReleaseScope() {
-        for (String name : List.of("", "api,namespace=prod", "api --selector name=other", "{{ .Values.name }}", "api\nother", "api!=other")) {
+        for (String name : List.of("api,namespace=prod", "api --selector name=other", "{{ .Values.name }}", "api\nother", "api!=other")) {
             assertNotNull(new HelmfileCommand(state.toString(), name, "", "quality", HelmfileOperation.DESTROY).problem());
         }
         assertNotNull(new HelmfileCommand(state.toString(), "api", "a,name=other", "quality", HelmfileOperation.APPLY).problem());
@@ -230,7 +230,7 @@ public class HelmfileExecutionTest extends BasePlatformTestCase {
             return true;
         });
         assertSize(3, markers);
-        var releaseMarker = markers.stream().filter(marker -> marker.actions.length > 1).findFirst().orElseThrow();
+        var releaseMarker = markers.stream().filter(marker -> marker.actions[0] instanceof HelmfileReleaseAction).findFirst().orElseThrow();
         assertEquals(List.of("Template Release…", "Diff Release…", "Apply Release…", "Destroy Release…"),
                 Arrays.stream(releaseMarker.actions).map(action -> action.getTemplatePresentation().getText()).toList());
         assertEquals(4, Arrays.stream(releaseMarker.actions).map(action -> action.getTemplatePresentation().getIcon()).distinct().count());
