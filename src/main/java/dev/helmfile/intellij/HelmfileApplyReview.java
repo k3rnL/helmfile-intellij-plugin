@@ -1,9 +1,11 @@
 package dev.helmfile.intellij;
 
 import com.intellij.openapi.actionSystem.*;
+import com.intellij.openapi.application.ReadAction;
+import com.intellij.openapi.editor.Document;
+import com.intellij.openapi.fileEditor.FileDocumentManager;
 import com.intellij.openapi.project.*;
-import com.intellij.psi.PsiDocumentManager;
-import com.intellij.psi.util.PsiModificationTracker;
+import com.intellij.openapi.vfs.LocalFileSystem;
 import java.nio.file.*;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -15,17 +17,26 @@ final class HelmfileApplyReview {
     private final HelmfileCommand command;
     private final Map<String, String> variables;
     private final boolean passParent;
+    private final HelmfileProjectEdits edits;
     private final long modifications;
+    private final Document stateDocument;
+    private final long documentStamp;
     private final java.nio.file.attribute.FileTime timestamp;
     private final AtomicBoolean used = new AtomicBoolean();
     HelmfileApplyReview(Project project, HelmfileCommand command, Map<String, String> variables, boolean passParent) throws java.io.IOException {
         this.project = project; this.command = command; this.variables = Map.copyOf(variables); this.passParent = passParent;
-        modifications = PsiModificationTracker.getInstance(project).getModificationCount();
+        edits = project.getService(HelmfileProjectEdits.class);
+        modifications = edits.getModificationCount();
+        stateDocument = ReadAction.computeBlocking(() -> {
+            var file = LocalFileSystem.getInstance().findFileByNioFile(Path.of(command.file()));
+            return file == null ? null : FileDocumentManager.getInstance().getDocument(file);
+        });
+        documentStamp = stateDocument == null ? -1 : stateDocument.getModificationStamp();
         timestamp = Files.getLastModifiedTime(Path.of(command.file()));
     }
     boolean current() {
-        if (project.isDisposed() || used.get() || modifications != PsiModificationTracker.getInstance(project).getModificationCount()
-                || PsiDocumentManager.getInstance(project).getUncommittedDocuments().length > 0) return false;
+        if (project.isDisposed() || used.get() || modifications != edits.getModificationCount()
+                || stateDocument != null && stateDocument.getModificationStamp() != documentStamp) return false;
         try { return timestamp.equals(Files.getLastModifiedTime(Path.of(command.file()))); }
         catch (java.io.IOException ignored) { return false; }
     }

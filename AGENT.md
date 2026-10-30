@@ -143,7 +143,8 @@ or inventing an empty follow-up version. Attach every created pull request to th
   treats detailed exit code 2 as changes, and limits captured output to 32 MiB. Preserve Secret redaction.
 - Apply runs that diff first. Only a complete review can approve the captured command once;
   approvals are transient and are never cloned, serialized, or reused by reruns. Recheck environment
-  protection before the actual noninteractive apply. Project edits invalidate the review.
+  protection before the actual noninteractive apply. Real project file edits invalidate the review;
+  preview PSI, temporary diff documents, and IDE configuration saves must not invalidate it.
 - Template captures stdout separately from the Run console and parses resource identities in a
   cancellable background task. The native read-only YAML viewer offers aggregate and per-resource
   output. Preserve raw YAML, bound output to 32 MiB, and never preview failed or stopped runs.
