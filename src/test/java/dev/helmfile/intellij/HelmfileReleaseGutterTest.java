@@ -68,6 +68,34 @@ public class HelmfileReleaseGutterTest extends BasePlatformTestCase {
                 """);
         assertNull(HelmfileReleaseTarget.at(file, file.getText().indexOf(".Values")));
     }
+    public void testNativeRunGutterRenderersRemainEqualAcrossAnalysisPasses() {
+        PsiFile file = configure("api");
+        var provider = new com.intellij.execution.lineMarker.RunLineMarkerProvider();
+        var keys = com.intellij.psi.util.PsiTreeUtil.findChildrenOfType(HelmfileValues.yaml(file), org.jetbrains.yaml.psi.YAMLKeyValue.class);
+        int count = 0;
+        for (var key : keys) {
+            if (!(key.getKeyText().equals("releases") || HelmfileReleaseTarget.isRelease(key))) continue;
+            var leaf = com.intellij.psi.util.PsiTreeUtil.getDeepestFirst(key.getKey());
+            var first = provider.getLineMarkerInfo(leaf);
+            var second = provider.getLineMarkerInfo(leaf);
+            assertNotNull(first); assertNotNull(second);
+            assertEquals("The IDE must recognize an unchanged run marker on " + key.getKeyText(), first.createGutterRenderer(), second.createGutterRenderer());
+            assertEquals(first.createGutterRenderer().hashCode(), second.createGutterRenderer().hashCode());
+            count++;
+        }
+        assertEquals(2, count);
+    }
+    public void testRepeatedAnalysisKeepsExactlyOneRunAndInheritanceGutterPerDeclaration() {
+        configure("api");
+        for (int pass = 0; pass < 3; pass++) {
+            com.intellij.codeInsight.daemon.DaemonCodeAnalyzer.getInstance(getProject()).restart();
+            var gutters = myFixture.findAllGutters();
+            for (String tooltip : java.util.List.of("Run Helmfile for this release", "Diff all Helmfile releases",
+                    "Go to parent Helmfile template", "Go to inheriting Helmfile releases or templates")) {
+                assertEquals("Pass " + pass + ": " + tooltip, 1, gutters.stream().filter(gutter -> tooltip.equals(gutter.getTooltipText())).count());
+            }
+        }
+    }
     public void testCompactReleaseNameOpensDialogWithStateNamespace() {
         PsiFile file = myFixture.configureByText("helmfile.yaml.gotmpl", "namespace: shared\nreleases: [name: web]\n");
         var name = com.intellij.psi.util.PsiTreeUtil.findChildrenOfType(HelmfileValues.yaml(file), org.jetbrains.yaml.psi.YAMLKeyValue.class).stream()

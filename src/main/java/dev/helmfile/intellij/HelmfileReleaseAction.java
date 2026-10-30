@@ -22,6 +22,10 @@ public class HelmfileReleaseAction extends AnAction implements com.intellij.open
         pointer = declaration == null ? null : SmartPointerManager.createPointer(declaration);
     }
     @Override public @NotNull ActionUpdateThread getActionUpdateThread() { return ActionUpdateThread.BGT; }
+    @Override public boolean equals(Object other) {
+        return other instanceof HelmfileReleaseAction action && operation == action.operation && java.util.Objects.equals(pointer, action.pointer);
+    }
+    @Override public int hashCode() { return java.util.Objects.hash(operation, pointer); }
     private YAMLKeyValue declaration(AnActionEvent event) {
         if (pointer != null) return pointer.getElement();
         var editor = event.getData(CommonDataKeys.EDITOR);
