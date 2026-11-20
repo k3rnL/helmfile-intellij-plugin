@@ -203,6 +203,9 @@ in **Settings → Tools → Helmfile**. The default executable is `helmfile` fro
    (**Review changes** for Apply).
    For a templated release name, enter its rendered name for the selected environment.
 4. Follow output in IntelliJ's **Run** tool window. Its standard controls stop or rerun the command.
+   On Linux and macOS, click inside the Run terminal to answer prompts from login helpers.
+   A helper that reads from `/dev/tty` can prompt even when Helmfile captures its output.
+   When the helper disables echo, type or paste your answer and press **Enter**.
 
 To run the same commands for the whole state, use the play icon beside **`releases:`** and choose
 an **All Releases…** action. Its dialog explicitly shows the scope and environment. Apply reviews

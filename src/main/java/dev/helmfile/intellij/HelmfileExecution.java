@@ -6,6 +6,8 @@ import com.intellij.execution.process.*;
 import com.intellij.openapi.application.*;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.ui.Messages;
+import com.intellij.util.io.BaseInputStreamReader;
+import java.io.Reader;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.regex.*;
@@ -53,7 +55,15 @@ final class HelmfileExecution {
         }
         HelmfileDiffRun diff = executed.operation() == HelmfileOperation.DIFF ? new HelmfileDiffRun(project, executed, review) : null;
         HelmfileTemplateRun template = executed.operation() == HelmfileOperation.TEMPLATE ? new HelmfileTemplateRun(project, executed) : null;
-        KillableColoredProcessHandler handler = new KillableColoredProcessHandler(line) {
+        HelmfileRunTerminal terminal = HelmfileRunTerminal.start(line);
+        KillableColoredProcessHandler handler = new KillableColoredProcessHandler(terminal.process(), line.getCommandLineString(), line.getCharset()) {
+            @Override protected Reader createProcessOutReader() {
+                return terminal.stdout() == null ? super.createProcessOutReader() : new BaseInputStreamReader(terminal.stdout(), line.getCharset());
+            }
+            @Override protected Reader createProcessErrReader() {
+                // The PTY master receives diagnostics and prompts written directly to /dev/tty.
+                return terminal.stdout() == null ? super.createProcessErrReader() : super.createProcessOutReader();
+            }
             @Override protected void destroyProcessImpl() {
                 if (diff != null) diff.cancel();
                 if (template != null) template.cancel();

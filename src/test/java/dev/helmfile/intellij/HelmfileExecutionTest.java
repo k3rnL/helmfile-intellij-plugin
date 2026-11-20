@@ -13,6 +13,8 @@ import com.intellij.openapi.util.Disposer;
 import com.intellij.psi.*;
 import com.intellij.psi.util.PsiTreeUtil;
 import com.intellij.testFramework.fixtures.BasePlatformTestCase;
+import com.intellij.testFramework.PlatformTestUtil;
+import com.intellij.terminal.TerminalExecutionConsole;
 import java.nio.file.*;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -186,6 +188,53 @@ public class HelmfileExecutionTest extends BasePlatformTestCase {
             xml.getChild("helmfile").setAttribute("operation", removed);
             restored.readExternal(xml);
             assertThrows(RuntimeConfigurationError.class, restored::checkConfiguration);
+        }
+    }
+    public void testRunTerminalAnswersHiddenPromptWithoutPollutingDiffOrApplyOutput() throws Exception {
+        if (!HelmfileRunTerminal.supported()) return;
+        Path helper = Files.writeString(directory.resolve("login.sh"), """
+                #!/bin/sh
+                exec 3<>/dev/tty || exit 1
+                stty -echo <&3 || exit 1
+                printf 'Login token? ' >&3
+                IFS= read -r token <&3 || exit 1
+                stty echo <&3
+                [ "$token" = fixture-response ]
+                """);
+        assertTrue(helper.toFile().setExecutable(true));
+        Files.writeString(executable, """
+                #!/bin/sh
+                login=$(./login.sh </dev/null 2>&1) || exit 1
+                printf 'manifest output\\n'
+                """);
+        var configuration = configuration();
+        var executor = DefaultRunExecutor.getRunExecutorInstance();
+        var runner = ProgramRunner.getRunner(executor.getId(), configuration);
+        var environment = ExecutionEnvironmentBuilder.create(getProject(), executor, configuration).build();
+        for (var operation : List.of(HelmfileOperation.DIFF, HelmfileOperation.APPLY)) {
+            configuration.operation = operation;
+            configuration.reviewedApply = operation == HelmfileOperation.APPLY;
+            var result = configuration.getState(executor, environment).execute(executor, runner);
+            var console = assertInstanceOf(result.getExecutionConsole(), TerminalExecutionConsole.class);
+            var handler = result.getProcessHandler();
+            var capture = new CapturingProcessAdapter();
+            handler.addProcessListener(capture);
+            handler.startNotify();
+            try {
+                var widget = console.getTerminalWidget();
+                var screen = widget.getTerminalTextBuffer();
+                PlatformTestUtil.waitWithEventsDispatching("Login prompt missing from the Run window", () ->
+                        screen.getScreenLines().contains("Login token? "), 10);
+                widget.getTtyConnector().write("fixture-response\r");
+                PlatformTestUtil.waitWithEventsDispatching("Login did not finish", handler::isProcessTerminated, 10);
+                assertEquals(Integer.valueOf(0), handler.getExitCode());
+                assertEquals("manifest output\n", capture.getOutput().getStdout());
+                assertFalse(capture.getOutput().getStderr().contains("fixture-response"));
+                assertFalse(screen.getScreenLines().contains("fixture-response"));
+            } finally {
+                if (!handler.isProcessTerminated()) handler.destroyProcess();
+                Disposer.dispose(console);
+            }
         }
     }
     public void testReviewedApprovalIsNotPersistedClonedOrReusedOnRerun() throws Exception {

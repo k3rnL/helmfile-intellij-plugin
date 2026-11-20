@@ -5,10 +5,12 @@ import com.intellij.execution.configuration.EnvironmentVariablesComponent;
 import com.intellij.execution.configurations.*;
 import com.intellij.execution.process.ProcessHandler;
 import com.intellij.execution.runners.ExecutionEnvironment;
+import com.intellij.execution.ui.ConsoleView;
 import com.intellij.openapi.components.PathMacroManager;
 import com.intellij.openapi.options.SettingsEditor;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.util.InvalidDataException;
+import com.intellij.terminal.TerminalExecutionConsoleBuilder;
 import java.util.*;
 import org.jdom.Element;
 import org.jetbrains.annotations.NotNull;
@@ -39,6 +41,13 @@ public final class HelmfileRunConfiguration extends LocatableConfigurationBase<O
         var approval = new java.util.concurrent.atomic.AtomicBoolean(reviewedApply);
         reviewedApply = false;
         return new CommandLineState(executionEnvironment) {
+            @Override protected ConsoleView createConsole(@NotNull Executor executor) throws ExecutionException {
+                if (!HelmfileRunTerminal.supported()) return super.createConsole(executor);
+                var terminal = new TerminalExecutionConsoleBuilder(getProject()).build();
+                // Piped manifest output uses LF, while the terminal driver emits CRLF for prompts.
+                terminal.getTerminalWidget().getTerminal().setAutoNewLine(true);
+                return terminal;
+            }
             @Override protected @NotNull ProcessHandler startProcess() throws ExecutionException {
                 return HelmfileExecution.start(getProject(), command, env, inherit, approval.getAndSet(false));
             }
